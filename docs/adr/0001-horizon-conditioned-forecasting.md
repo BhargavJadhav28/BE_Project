@@ -1,0 +1,3 @@
+# 0001. Origin-Anchored Horizon-Conditioned Forecasting
+
+For 24-hour day-ahead solar PV and load forecasting, recursive autoregressive rollout compounds prediction errors over 24 steps, while maintaining 24 individual hourly models creates artifact bloat and training overhead on local machines. We decided to use a single origin-anchored horizon-conditioned LightGBM model per target where the relative horizon index $h \in [1, 24]$ is an explicit feature alongside origin-anchored historical telemetry ($T$) and forward weather forecasts ($T+h$). This architecture prevents error cascades, maintains lightweight laptop training efficiency, and yields only two compact model artifacts.
