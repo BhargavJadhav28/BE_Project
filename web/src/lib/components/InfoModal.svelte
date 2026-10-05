@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { Lock, CheckCircle2, XCircle, X } from '@lucide/svelte';
+
 	interface Props {
 		isOpen: boolean;
 		onClose: () => void;
@@ -157,7 +159,10 @@
 
 								<div class="timeline-barrier">
 									<div class="barrier-line"></div>
-									<div class="barrier-badge">🔒 TIME T LOCK</div>
+									<div class="barrier-badge">
+										<Lock size={12} class="text-sky" />
+										<span>TIME T LOCK</span>
+									</div>
 									<div class="barrier-line"></div>
 								</div>
 
@@ -177,7 +182,10 @@
 						<!-- Two Approaches Comparison -->
 						<div class="comparison-grid">
 							<div class="comp-box bad-box">
-								<h4 class="comp-title font-mono">❌ Naive Recursive Method (Why it fails)</h4>
+								<h4 class="comp-title font-mono">
+									<XCircle size={15} class="text-rose" />
+									<span>Naive Recursive Method (Why it fails)</span>
+								</h4>
 								<ul class="comp-list">
 									<li>To predict hour 2, it feeds its own prediction from hour 1 back in as a "lag".</li>
 									<li>To predict hour 24, small errors multiply 24 times.</li>
@@ -186,7 +194,10 @@
 							</div>
 
 							<div class="comp-box good-box">
-								<h4 class="comp-title font-mono">✓ Helios Origin-Conditioned Method (Our system)</h4>
+								<h4 class="comp-title font-mono">
+									<CheckCircle2 size={15} class="text-emerald" />
+									<span>Helios Origin-Conditioned Method (Our system)</span>
+								</h4>
 								<ul class="comp-list">
 									<li>Locks all historical lags strictly at origin moment T.</li>
 									<li>Conditions directly on the horizon index (step h from 1 to 24).</li>

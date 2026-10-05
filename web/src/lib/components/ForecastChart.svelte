@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { WeatherForecastStep } from '../types';
+	import { Sun, Building2, Zap, BatteryCharging, Battery, ArrowRight, ArrowDown, ArrowUp } from '@lucide/svelte';
 
 	interface Props {
 		timestamps: string[];
@@ -197,23 +198,24 @@
 			<!-- Live Microgrid Power Flow Schematic -->
 			<div class="microgrid-flow font-mono" title="Instantaneous microgrid power flow at this hour">
 				<div class="flow-asset pv-asset">
-					<span class="asset-symbol">☀️</span>
+					<Sun size={15} class="asset-symbol text-amber" />
 					<div class="asset-data">
 						<span class="asset-val">{curPv.toFixed(1)} kW</span>
 						<span class="asset-lbl">Solar PV</span>
 					</div>
 				</div>
 
-				<div class="flow-wire">→</div>
+				<ArrowRight size={13} class="flow-wire" />
 
 				<div class="flow-bus">
-					<span class="bus-badge">⚡ AC BUS</span>
+					<Zap size={13} class="text-amber" />
+					<span class="bus-badge">AC BUS</span>
 				</div>
 
-				<div class="flow-wire">→</div>
+				<ArrowRight size={13} class="flow-wire" />
 
 				<div class="flow-asset load-asset">
-					<span class="asset-symbol">🏢</span>
+					<Building2 size={15} class="asset-symbol text-sky" />
 					<div class="asset-data">
 						<span class="asset-val">{curLoad.toFixed(1)} kW</span>
 						<span class="asset-lbl">Building</span>
@@ -221,11 +223,21 @@
 				</div>
 
 				<div class="flow-wire flow-vert" class:is-surplus={hoveredNet >= 0} class:is-deficit={hoveredNet < 0}>
-					<span>{hoveredNet >= 0 ? '↓ Charge' : '↑ Discharge'}</span>
+					{#if hoveredNet >= 0}
+						<ArrowDown size={12} />
+						<span>Charge</span>
+					{:else}
+						<ArrowUp size={12} />
+						<span>Discharge</span>
+					{/if}
 				</div>
 
 				<div class="flow-asset batt-asset" class:charging={hoveredNet >= 0} class:discharging={hoveredNet < 0}>
-					<span class="asset-symbol">🔋</span>
+					{#if hoveredNet >= 0}
+						<BatteryCharging size={16} class="asset-symbol text-emerald" />
+					{:else}
+						<Battery size={16} class="asset-symbol text-rose" />
+					{/if}
 					<div class="asset-data">
 						<span class="asset-val">{Math.abs(hoveredNet).toFixed(1)} kW</span>
 						<span class="asset-lbl">{hoveredNet >= 0 ? 'Store extra' : 'Supply load'}</span>
@@ -764,10 +776,6 @@
 
 	.batt-asset.discharging .asset-val {
 		color: var(--color-deficit-ink);
-	}
-
-	.asset-symbol {
-		font-size: 0.85rem;
 	}
 
 	.asset-data {

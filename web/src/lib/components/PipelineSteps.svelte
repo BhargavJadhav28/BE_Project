@@ -1,4 +1,21 @@
 <script lang="ts">
+	import {
+		ShieldCheck,
+		Lock,
+		Cpu,
+		SlidersHorizontal,
+		BatteryCharging,
+		ArrowRight,
+		ArrowDown,
+		X,
+		CheckCircle2,
+		AlertTriangle,
+		TrendingUp,
+		RotateCcw,
+		Calendar,
+		Layers
+	} from '@lucide/svelte';
+
 	interface Props {
 		origin: string;
 		historyCount: number;
@@ -23,10 +40,11 @@
 		source = ''
 	}: Props = $props();
 
-	let activeStage = $state<string | null>('conditioning');
+	type StageId = 'sanitizer' | 'conditioning' | 'inference' | 'guard' | 'dispatch';
+	let activeStage = $state<StageId | null>('sanitizer');
 	let showTechSpecs = $state(false);
 
-	function toggleStage(id: string) {
+	function selectStage(id: StageId) {
 		activeStage = activeStage === id ? null : id;
 	}
 
@@ -77,398 +95,627 @@
 		</div>
 	</div>
 
-	<!-- Visual Dataflow Connector Ribbon -->
+	<!-- Dataflow Ribbon -->
 	<div class="dataflow-ribbon font-mono">
 		<button 
 			class="flow-node" 
 			class:active={activeStage === 'sanitizer'}
-			onclick={() => toggleStage('sanitizer')}
+			onclick={() => selectStage('sanitizer')}
 		>
-			<span class="node-dot"></span>
-			<span class="node-text">01 Data Sanitizer</span>
+			<ShieldCheck size={14} class="node-icon" />
+			<span>01 Clean Sensor Data</span>
 		</button>
-		<div class="flow-arrow" aria-hidden="true">→</div>
+		<ArrowRight size={13} class="flow-arrow" />
 		
 		<button 
-			class="flow-node highlight-node" 
+			class="flow-node" 
 			class:active={activeStage === 'conditioning'}
-			onclick={() => toggleStage('conditioning')}
+			onclick={() => selectStage('conditioning')}
 		>
-			<span class="node-dot"></span>
-			<span class="node-text">02 Lags & Origin Lock</span>
+			<Lock size={13} class="node-icon" />
+			<span>02 Time Anchor & Context</span>
 		</button>
-		<div class="flow-arrow" aria-hidden="true">→</div>
+		<ArrowRight size={13} class="flow-arrow" />
 
 		<button 
 			class="flow-node" 
 			class:active={activeStage === 'inference'}
-			onclick={() => toggleStage('inference')}
+			onclick={() => selectStage('inference')}
 		>
-			<span class="node-dot"></span>
-			<span class="node-text">03 Dual LightGBM</span>
+			<Cpu size={14} class="node-icon" />
+			<span>03 Predict Power</span>
 		</button>
-		<div class="flow-arrow" aria-hidden="true">→</div>
+		<ArrowRight size={13} class="flow-arrow" />
 
 		<button 
 			class="flow-node" 
 			class:active={activeStage === 'guard'}
-			onclick={() => toggleStage('guard')}
+			onclick={() => selectStage('guard')}
 		>
-			<span class="node-dot"></span>
-			<span class="node-text">04 Physical Limits</span>
+			<SlidersHorizontal size={14} class="node-icon" />
+			<span>04 Enforce Limits</span>
 		</button>
-		<div class="flow-arrow" aria-hidden="true">→</div>
+		<ArrowRight size={13} class="flow-arrow" />
 
 		<button 
 			class="flow-node" 
 			class:active={activeStage === 'dispatch'}
-			onclick={() => toggleStage('dispatch')}
+			onclick={() => selectStage('dispatch')}
 		>
-			<span class="node-dot"></span>
-			<span class="node-text">05 Battery Dispatch</span>
+			<BatteryCharging size={14} class="node-icon" />
+			<span>05 Schedule Battery</span>
 		</button>
 	</div>
 
-	<!-- Stage Grid -->
-	<div class="stages-container">
-		<!-- Stage 01: Sanitizer -->
-		<div class="stage-cell" class:is-active={activeStage === 'sanitizer'}>
-			<div class="stage-header-row">
-				<span class="stage-num font-mono">01</span>
-				<div class="stage-title-group">
-					<h3 class="stage-title">Clean sensor data</h3>
-					<span class="stage-sub">Self-healing history buffer</span>
+	<!-- The 5 Stage Cards Grid: Balanced, Equal-Height Row -->
+	<div class="stages-overview-grid">
+		<!-- Card 01: Sanitizer -->
+		<button 
+			class="stage-card" 
+			class:selected={activeStage === 'sanitizer'}
+			onclick={() => selectStage('sanitizer')}
+		>
+			<div class="card-head">
+				<div class="stage-num-badge font-mono">01</div>
+				<div class="stage-label-group">
+					<h3 class="stage-card-title">Clean sensor data</h3>
+					<span class="stage-card-sub">Self-healing history buffer</span>
 				</div>
-				<button class="stage-btn font-mono" onclick={() => toggleStage('sanitizer')}>
-					{activeStage === 'sanitizer' ? 'Close' : 'Inspect'}
-				</button>
 			</div>
 
-			<div class="stage-body">
-				<div class="stat-line">
-					<span class="stat-label">Buffer window</span>
-					<span class="stat-val font-mono">{historyCount}h contiguous</span>
+			<div class="card-stats font-mono">
+				<div class="card-stat-row">
+					<span class="stat-lbl">Buffer</span>
+					<span class="stat-num">{historyCount}h contiguous</span>
 				</div>
-				<div class="stat-line">
-					<span class="stat-label">Signal status</span>
+				<div class="card-stat-row">
+					<span class="stat-lbl">Feed</span>
 					<span class="stat-badge" class:healed={hasGap}>
 						{hasGap ? `${gapHours}h filled (Healed)` : 'Continuous stream'}
 					</span>
 				</div>
 			</div>
 
-			{#if activeStage === 'sanitizer'}
-				<div class="stage-drawer">
-					{#if !showTechSpecs}
-						<div class="ste-box">
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">RULE</span>
-								<p>Collect 48 hours of sensor history before origin time T.</p>
-							</div>
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">RULE</span>
-								<p>If data gaps are 3 hours or less, fill missing values automatically.</p>
-							</div>
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">RULE</span>
-								<p>If data gaps exceed 3 hours, stop the pipeline and trigger an alarm.</p>
-							</div>
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">RULE</span>
-								<p>If the sun is down (irradiance = 0), force missing solar values to 0.0 kW.</p>
-							</div>
-						</div>
-					{:else}
-						<div class="spec-box font-mono">
-							<p><strong>Input:</strong> 48h rolling sensor DataFrame [T-48h..T]</p>
-							<p><strong>Algorithm:</strong> Linear interpolation for gaps ≤ 3h</p>
-							<p><strong>Guard:</strong> Raise <code>TelemetryGapError</code> on dropouts &gt; 3h</p>
-							<p><strong>Output:</strong> Contiguous 49-row matrix with zero null values</p>
-						</div>
-					{/if}
-				</div>
-			{/if}
-		</div>
-
-		<!-- Stage 02: Feature Lags & Origin Lock (FOCAL POINT FOR LAGS) -->
-		<div class="stage-cell stage-lags-cell" class:is-active={activeStage === 'conditioning'}>
-			<div class="stage-header-row">
-				<span class="stage-num font-mono">02</span>
-				<div class="stage-title-group">
-					<h3 class="stage-title">Feature lags & origin lock</h3>
-					<span class="stage-sub">Historical memory frozen at time T</span>
-				</div>
-				<button class="stage-btn font-mono" onclick={() => toggleStage('conditioning')}>
-					{activeStage === 'conditioning' ? 'Close' : 'Inspect'}
-				</button>
+			<div class="card-footer font-mono">
+				<span class="action-hint">{activeStage === 'sanitizer' ? 'Close detail' : 'Inspect stage'}</span>
 			</div>
+		</button>
 
-			<div class="stage-body">
-				<div class="stat-line">
-					<span class="stat-label">Origin lock [T]</span>
-					<span class="stat-val font-mono">{originTime} (Locked)</span>
-				</div>
-				<div class="stat-line">
-					<span class="stat-label">Daily lag [T-24h]</span>
-					<span class="stat-badge lag-badge">Yesterday baseline</span>
-				</div>
-				<div class="stat-line">
-					<span class="stat-label">Momentum [T-1h]</span>
-					<span class="stat-badge lag-badge">Immediate trend</span>
+		<!-- Card 02: Time Anchor & History -->
+		<button 
+			class="stage-card" 
+			class:selected={activeStage === 'conditioning'}
+			onclick={() => selectStage('conditioning')}
+		>
+			<div class="card-head">
+				<div class="stage-num-badge font-mono">02</div>
+				<div class="stage-label-group">
+					<h3 class="stage-card-title">Time anchor & history</h3>
+					<span class="stage-card-sub">Lock origin T & weather context</span>
 				</div>
 			</div>
 
-			{#if activeStage === 'conditioning'}
-				<div class="stage-drawer">
-					<!-- Visual Lag Architecture Map -->
-					<div class="lag-visual-map">
-						<div class="lag-map-header font-mono">
-							<span>HOW LAGS WORK (ADR 0001)</span>
-						</div>
-
-						<div class="lag-timeline-graphic">
-							<!-- Past section -->
-							<div class="timeline-block past-block">
-								<span class="block-label font-mono">PAST SENSOR MEMORY (LOCKED AT T)</span>
-								<div class="lag-chips font-mono">
-									<div class="lag-chip" title="Reading from 24 hours ago (matches daily cycle)">
-										<span class="chip-time">T-24h</span>
-										<span class="chip-desc">Daily baseline</span>
-									</div>
-									<div class="lag-chip" title="Rolling 6-hour power mean (moving energy level)">
-										<span class="chip-time">T-6h..T</span>
-										<span class="chip-desc">Rolling mean</span>
-									</div>
-									<div class="lag-chip" title="Reading from 1 hour ago (immediate ramp)">
-										<span class="chip-time">T-1h</span>
-										<span class="chip-desc">Momentum</span>
-									</div>
-									<div class="lag-chip origin-chip" title="Current reading right at the forecast moment">
-										<span class="chip-time">T</span>
-										<span class="chip-desc">Anchor</span>
-									</div>
-								</div>
-							</div>
-
-							<!-- Lock Barrier -->
-							<div class="timeline-divider" title="History freezes here. Model cannot read future sensor data.">
-								<span class="lock-icon font-mono">🔒 LOCK</span>
-								<span class="divider-line"></span>
-							</div>
-
-							<!-- Future section -->
-							<div class="timeline-block future-block">
-								<span class="block-label font-mono">24H FORWARD HORIZON</span>
-								<div class="horizon-chips font-mono">
-									<div class="horizon-chip">T+1h</div>
-									<div class="horizon-chip">T+2h</div>
-									<div class="horizon-chip">...</div>
-									<div class="horizon-chip">T+24h</div>
-								</div>
-								<span class="future-note font-mono">+ 24h Numerical Weather Forecast</span>
-							</div>
-						</div>
-					</div>
-
-					{#if !showTechSpecs}
-						<div class="ste-box">
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">DEFINITION</span>
-								<p><strong>What is a lag?</strong> A lag is a sensor measurement from the past.</p>
-							</div>
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">RULE 1</span>
-								<p>Use the power from 24 hours ago (T-24h) as the daily baseline. Facilities follow daily human schedules.</p>
-							</div>
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">RULE 2</span>
-								<p>Use the power from 1 hour ago (T-1h) to detect whether power is ramping up or down.</p>
-							</div>
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">RULE 3</span>
-								<p>Lock all lags at origin hour T. Do not use predicted numbers as lags. This stops error cascade.</p>
-							</div>
-						</div>
-					{:else}
-						<div class="spec-box font-mono">
-							<p><strong>Lag Features:</strong> <code>lag_0, lag_1, lag_23, lag_24</code></p>
-							<p><strong>Rolling Windows:</strong> <code>mean_6h, std_6h, mean_24h, std_24h</code></p>
-							<p><strong>Horizon Index:</strong> Conditioned explicitly on integer <code>h ∈ [1..24]</code></p>
-							<p><strong>Advantage:</strong> Eliminates autoregressive multi-step drift. No feedback error loop.</p>
-						</div>
-					{/if}
+			<div class="card-stats font-mono">
+				<div class="card-stat-row">
+					<span class="stat-lbl">Origin T</span>
+					<span class="stat-num">{originTime} (Locked)</span>
 				</div>
-			{/if}
-		</div>
-
-		<!-- Stage 03: Parallel LightGBM -->
-		<div class="stage-cell" class:is-active={activeStage === 'inference'}>
-			<div class="stage-header-row">
-				<span class="stage-num font-mono">03</span>
-				<div class="stage-title-group">
-					<h3 class="stage-title">Predict power</h3>
-					<span class="stage-sub">Parallel LightGBM models</span>
-				</div>
-				<button class="stage-btn font-mono" onclick={() => toggleStage('inference')}>
-					{activeStage === 'inference' ? 'Close' : 'Inspect'}
-				</button>
-			</div>
-
-			<div class="stage-body">
-				<div class="stat-line">
-					<span class="stat-label">Inference speed</span>
-					<span class="stat-val highlight font-mono">{latencyMs.toFixed(1)} ms</span>
-				</div>
-				<div class="stat-line">
-					<span class="stat-label">Raw peaks</span>
-					<span class="stat-val font-mono">{peakPvKw.toFixed(0)} kW / {peakLoadKw.toFixed(0)} kW</span>
+				<div class="card-stat-row">
+					<span class="stat-lbl">Past memory</span>
+					<span class="stat-badge anchor-badge">T-24h & T-1h lags</span>
 				</div>
 			</div>
 
-			{#if activeStage === 'inference'}
-				<div class="stage-drawer">
-					{#if !showTechSpecs}
-						<div class="ste-box">
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">RULE</span>
-								<p>Run two specialized gradient-boosted models at the same time: one for Solar PV and one for Building Load.</p>
-							</div>
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">RULE</span>
-								<p>Predict all 24 future hours in one calculation. Do not loop step-by-step.</p>
-							</div>
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">PERFORMANCE</span>
-								<p>Inference executes in under 25 milliseconds on standard laptop CPUs.</p>
-							</div>
-						</div>
-					{:else}
-						<div class="spec-box font-mono">
-							<p><strong>Models:</strong> Dual <code>lightgbm.LGBMRegressor</code> (pv_model, load_model)</p>
-							<p><strong>Hyperparameters:</strong> 150 trees, max_depth=6, num_leaves=31, lr=0.05</p>
-							<p><strong>Validation SLA:</strong> PV daylight nMAE &le; 0.26%, Load nMAE &le; 2.99%</p>
-							<p><strong>Output:</strong> Unconstrained 24-step raw numerical predictions</p>
-						</div>
-					{/if}
-				</div>
-			{/if}
-		</div>
-
-		<!-- Stage 04: Physical Limits -->
-		<div class="stage-cell" class:is-active={activeStage === 'guard'}>
-			<div class="stage-header-row">
-				<span class="stage-num font-mono">04</span>
-				<div class="stage-title-group">
-					<h3 class="stage-title">Enforce physical limits</h3>
-					<span class="stage-sub">Inverter ceiling & night bounds</span>
-				</div>
-				<button class="stage-btn font-mono" onclick={() => toggleStage('guard')}>
-					{activeStage === 'guard' ? 'Close' : 'Inspect'}
-				</button>
+			<div class="card-footer font-mono">
+				<span class="action-hint">{activeStage === 'conditioning' ? 'Close detail' : 'Inspect stage'}</span>
 			</div>
+		</button>
 
-			<div class="stage-body">
-				<div class="stat-line">
-					<span class="stat-label">Night rule</span>
-					<span class="stat-badge font-mono">0.0 kW (GHI ≤ 0)</span>
-				</div>
-				<div class="stat-line">
-					<span class="stat-label">Inverter cap</span>
-					<span class="stat-val font-mono">50.0 kW maximum</span>
+		<!-- Card 03: Parallel LightGBM -->
+		<button 
+			class="stage-card" 
+			class:selected={activeStage === 'inference'}
+			onclick={() => selectStage('inference')}
+		>
+			<div class="card-head">
+				<div class="stage-num-badge font-mono">03</div>
+				<div class="stage-label-group">
+					<h3 class="stage-card-title">Predict power</h3>
+					<span class="stage-card-sub">Dual LightGBM models</span>
 				</div>
 			</div>
 
-			{#if activeStage === 'guard'}
-				<div class="stage-drawer">
-					{#if !showTechSpecs}
-						<div class="ste-box">
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">PHYSICS 1</span>
-								<p>Set solar generation strictly to 0.0 kW when the sun is down (solar irradiance &le; 0).</p>
-							</div>
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">PHYSICS 2</span>
-								<p>Limit solar generation to 50.0 kW. Solar panels cannot produce more power than the inverter rating.</p>
-							</div>
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">PHYSICS 3</span>
-								<p>Keep facility power demand between 10.0 kW (baseload) and 45.0 kW (peak).</p>
-							</div>
-						</div>
-					{:else}
-						<div class="spec-box font-mono">
-							<p><strong>Boundary Code:</strong> <code>ml_service/postprocessing/boundary_enforcer.py</code></p>
-							<p><strong>Solar Clipping:</strong> <code>clip(P̂_pv, 0.0, 50.0) · 1(GHI &gt; 0)</code></p>
-							<p><strong>Load Clipping:</strong> <code>clip(P̂_load, 0.0, 1.2 · 45.0 kW)</code></p>
-							<p><strong>Output:</strong> Safe, physically realizable dispatch boundary</p>
-						</div>
-					{/if}
+			<div class="card-stats font-mono">
+				<div class="card-stat-row">
+					<span class="stat-lbl">Speed</span>
+					<span class="stat-num highlight">{latencyMs.toFixed(1)} ms</span>
 				</div>
-			{/if}
-		</div>
-
-		<!-- Stage 05: Battery Storage Dispatch -->
-		<div class="stage-cell" class:is-active={activeStage === 'dispatch'}>
-			<div class="stage-header-row">
-				<span class="stage-num font-mono">05</span>
-				<div class="stage-title-group">
-					<h3 class="stage-title">Schedule battery</h3>
-					<span class="stage-sub">Solar storage & cost reduction</span>
+				<div class="card-stat-row">
+					<span class="stat-lbl">Raw peaks</span>
+					<span class="stat-num">{peakPvKw.toFixed(0)} kW / {peakLoadKw.toFixed(0)} kW</span>
 				</div>
-				<button class="stage-btn font-mono" onclick={() => toggleStage('dispatch')}>
-					{activeStage === 'dispatch' ? 'Close' : 'Inspect'}
-				</button>
 			</div>
 
-			<!-- Clean Energy Split Meter -->
-			<div class="energy-track" title="{solarCoveragePct}% Solar coverage of building load">
-				<div class="energy-fill pv-fill" style="width: {solarCoveragePct}%;"></div>
-				<div class="energy-fill load-fill" style="width: {100 - solarCoveragePct}%;"></div>
+			<div class="card-footer font-mono">
+				<span class="action-hint">{activeStage === 'inference' ? 'Close detail' : 'Inspect stage'}</span>
+			</div>
+		</button>
+
+		<!-- Card 04: Physical Limits -->
+		<button 
+			class="stage-card" 
+			class:selected={activeStage === 'guard'}
+			onclick={() => selectStage('guard')}
+		>
+			<div class="card-head">
+				<div class="stage-num-badge font-mono">04</div>
+				<div class="stage-label-group">
+					<h3 class="stage-card-title">Enforce limits</h3>
+					<span class="stage-card-sub">Inverter ceiling & night bounds</span>
+				</div>
 			</div>
 
-			<div class="stage-body">
-				<div class="stat-line">
-					<span class="stat-label">24h Net energy</span>
-					<span class="stat-val font-mono" class:surplus={netBalanceKwh >= 0} class:deficit={netBalanceKwh < 0}>
+			<div class="card-stats font-mono">
+				<div class="card-stat-row">
+					<span class="stat-lbl">Night rule</span>
+					<span class="stat-badge">0.0 kW (GHI ≤ 0)</span>
+				</div>
+				<div class="card-stat-row">
+					<span class="stat-lbl">Inverter cap</span>
+					<span class="stat-num">50.0 kW max</span>
+				</div>
+			</div>
+
+			<div class="card-footer font-mono">
+				<span class="action-hint">{activeStage === 'guard' ? 'Close detail' : 'Inspect stage'}</span>
+			</div>
+		</button>
+
+		<!-- Card 05: Battery Dispatch -->
+		<button 
+			class="stage-card" 
+			class:selected={activeStage === 'dispatch'}
+			onclick={() => selectStage('dispatch')}
+		>
+			<div class="card-head">
+				<div class="stage-num-badge font-mono">05</div>
+				<div class="stage-label-group">
+					<h3 class="stage-card-title">Schedule battery</h3>
+					<span class="stage-card-sub">Energy balance & arbitrage</span>
+				</div>
+			</div>
+
+			<div class="card-stats font-mono">
+				<!-- Split Energy Meter -->
+				<div class="mini-energy-bar" title="{solarCoveragePct}% Solar coverage">
+					<div class="energy-chunk pv-chunk" style="width: {solarCoveragePct}%;"></div>
+					<div class="energy-chunk load-chunk" style="width: {100 - solarCoveragePct}%;"></div>
+				</div>
+
+				<div class="card-stat-row">
+					<span class="stat-lbl">24h Net</span>
+					<span class="stat-num" class:surplus={netBalanceKwh >= 0} class:deficit={netBalanceKwh < 0}>
 						{netBalanceKwh >= 0 ? '+' : ''}{netBalanceKwh.toFixed(1)} kWh
 					</span>
 				</div>
-				<div class="stat-line">
-					<span class="stat-label">Battery action</span>
-					<span class="stat-badge" class:surplus-badge={netBalanceKwh >= 0} class:deficit-badge={netBalanceKwh < 0}>
-						{netBalanceKwh >= 0 ? 'Charge battery' : 'Discharge battery'}
-					</span>
-				</div>
 			</div>
 
-			{#if activeStage === 'dispatch'}
-				<div class="stage-drawer">
+			<div class="card-footer font-mono">
+				<span class="action-hint">{activeStage === 'dispatch' ? 'Close detail' : 'Inspect stage'}</span>
+			</div>
+		</button>
+	</div>
+
+	<!-- Wide, Full-Width Detail Inspector Panel -->
+	{#if activeStage !== null}
+		<section class="wide-inspector-panel">
+			<!-- Detail Header -->
+			<div class="inspector-header">
+				<div class="inspector-title-group">
+					<div class="inspector-icon-pill">
+						{#if activeStage === 'sanitizer'}
+							<ShieldCheck size={18} class="text-amber" />
+						{:else if activeStage === 'conditioning'}
+							<Lock size={18} class="text-sky" />
+						{:else if activeStage === 'inference'}
+							<Cpu size={18} class="text-amber" />
+						{:else if activeStage === 'guard'}
+							<SlidersHorizontal size={18} class="text-emerald" />
+						{:else if activeStage === 'dispatch'}
+							<BatteryCharging size={18} class="text-emerald" />
+						{/if}
+					</div>
+					<div>
+						<div class="inspector-badge-row font-mono">
+							<span class="stage-tag">STAGE {activeStage === 'sanitizer' ? '01' : activeStage === 'conditioning' ? '02' : activeStage === 'inference' ? '03' : activeStage === 'guard' ? '04' : '05'}</span>
+							<span class="spec-mode-badge">{showTechSpecs ? 'Technical Specification' : 'Operational Rules (ASD-STE100)'}</span>
+						</div>
+						<h3 class="inspector-title">
+							{#if activeStage === 'sanitizer'}
+								Stage 01: Clean Sensor Data & Lookback Buffer Healing
+							{:else if activeStage === 'conditioning'}
+								Stage 02: Time Anchor & Sensor History Memory
+							{:else if activeStage === 'inference'}
+								Stage 03: Parallel Power Prediction via Dual LightGBM
+							{:else if activeStage === 'guard'}
+								Stage 04: Enforce Physical Microgrid Limits & Night Rules
+							{:else if activeStage === 'dispatch'}
+								Stage 05: Calculate Energy Balance & Schedule Battery Storage
+							{/if}
+						</h3>
+					</div>
+				</div>
+
+				<button class="close-inspector-btn" onclick={() => (activeStage = null)} title="Close detail drawer">
+					<X size={16} />
+					<span class="font-mono">Close</span>
+				</button>
+			</div>
+
+			<!-- Spacious 2-Column Body -->
+			<div class="inspector-body-grid">
+				<!-- Left Column: Plain Operational Rules (ASD-STE100) or Technical Specs -->
+				<div class="inspector-col">
+					<h4 class="col-heading font-mono">
+						<span>{showTechSpecs ? 'LOW-LEVEL CODE IMPLEMENTATION' : 'EXPLICIT OPERATIONAL RULES'}</span>
+					</h4>
+
 					{#if !showTechSpecs}
-						<div class="ste-box">
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">FORMULA</span>
-								<p><strong>Net Power</strong> = Solar Power minus Building Load.</p>
-							</div>
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">SURPLUS</span>
-								<p>When solar power exceeds building load (Net &gt; 0), charge excess energy into the battery.</p>
-							</div>
-							<div class="ste-rule">
-								<span class="rule-tag font-mono">DEFICIT</span>
-								<p>When building load exceeds solar power (Net &lt; 0), discharge the battery to avoid buying expensive grid electricity.</p>
-							</div>
+						<div class="rules-list">
+							{#if activeStage === 'sanitizer'}
+								<div class="rule-card">
+									<div class="rule-icon"><CheckCircle2 size={15} class="text-amber" /></div>
+									<div class="rule-content">
+										<strong>Collect 48 Hours of Sensor History</strong>
+										<p>The system ingests 48 continuous hourly readings before forecast origin time T to establish stable baselines.</p>
+									</div>
+								</div>
+								<div class="rule-card">
+									<div class="rule-icon"><CheckCircle2 size={15} class="text-emerald" /></div>
+									<div class="rule-content">
+										<strong>Automatic Healing (Gaps ≤ 3 Hours)</strong>
+										<p>If sensor packet loss creates gaps of 3 hours or less, the sanitizer calculates missing values automatically via linear interpolation.</p>
+									</div>
+								</div>
+								<div class="rule-card">
+									<div class="rule-icon"><AlertTriangle size={15} class="text-rose" /></div>
+									<div class="rule-content">
+										<strong>Supervisory Trip Alarm (Gaps &gt; 3 Hours)</strong>
+										<p>If sensor blackouts exceed 3 hours, interpolation is unsafe. The pipeline stops and signals a supervisory alert for fail-safe fallback dispatch.</p>
+									</div>
+								</div>
+								<div class="rule-card">
+									<div class="rule-icon"><CheckCircle2 size={15} class="text-amber" /></div>
+									<div class="rule-content">
+										<strong>Nocturnal Zero-Fill</strong>
+										<p>Missing solar generation values during night hours (solar irradiance = 0) are strictly forced to 0.0 kW.</p>
+									</div>
+								</div>
+
+							{:else if activeStage === 'conditioning'}
+								<div class="rule-card">
+									<div class="rule-icon"><Lock size={15} class="text-sky" /></div>
+									<div class="rule-content">
+										<strong>Origin Lock at Time T (Zero Data Leakage)</strong>
+										<p>All historical sensor readings lock at hour T. The model cannot read future sensor data when calculating predictions.</p>
+									</div>
+								</div>
+								<div class="rule-card">
+									<div class="rule-icon"><RotateCcw size={15} class="text-sky" /></div>
+									<div class="rule-content">
+										<strong>Use Yesterday's Baseline (T-24h Lag)</strong>
+										<p>Electrical demand repeats daily. The reading from 24 hours ago gives the model its primary reference baseline for today.</p>
+									</div>
+								</div>
+								<div class="rule-card">
+									<div class="rule-icon"><TrendingUp size={15} class="text-sky" /></div>
+									<div class="rule-content">
+										<strong>Use Immediate Momentum (T-1h Lag)</strong>
+										<p>The reading from 1 hour ago tells the model whether building electrical consumption is currently ramping up or ramping down.</p>
+									</div>
+								</div>
+								<div class="rule-card">
+									<div class="rule-icon"><CheckCircle2 size={15} class="text-emerald" /></div>
+									<div class="rule-content">
+										<strong>Add Forward Numerical Weather Predictions</strong>
+										<p>Combines locked historical readings with 24-hour forward forecasts for solar irradiance, ambient temperature, and cloud cover.</p>
+									</div>
+								</div>
+
+							{:else if activeStage === 'inference'}
+								<div class="rule-card">
+									<div class="rule-icon"><Cpu size={15} class="text-amber" /></div>
+									<div class="rule-content">
+										<strong>Run Dual Gradient-Boosted Models in Parallel</strong>
+										<p>Two specialized LightGBM regressors execute simultaneously: one model predicts Solar PV and one model predicts Building Load.</p>
+									</div>
+								</div>
+								<div class="rule-card">
+									<div class="rule-icon"><CheckCircle2 size={15} class="text-amber" /></div>
+									<div class="rule-content">
+										<strong>Predict All 24 Future Hours Simultaneously</strong>
+										<p>Instead of feeding predictions back recursively, both models condition directly on the step number (h = 1 to 24). This stops error accumulation.</p>
+									</div>
+								</div>
+								<div class="rule-card">
+									<div class="rule-icon"><CheckCircle2 size={15} class="text-emerald" /></div>
+									<div class="rule-content">
+										<strong>Sub-50 Millisecond Laptop Execution</strong>
+										<p>Inference completes in under 25 milliseconds on standard laptop CPUs, enabling high-frequency supervisory dispatch.</p>
+									</div>
+								</div>
+
+							{:else if activeStage === 'guard'}
+								<div class="rule-card">
+									<div class="rule-icon"><SlidersHorizontal size={15} class="text-emerald" /></div>
+									<div class="rule-content">
+										<strong>Hard Nocturnal Solar Zeroing</strong>
+										<p>When forecasted solar irradiance is 0.0 W/m² (sun is down), solar power output is strictly forced to 0.0 kW, eliminating statistical noise.</p>
+									</div>
+								</div>
+								<div class="rule-card">
+									<div class="rule-icon"><SlidersHorizontal size={15} class="text-emerald" /></div>
+									<div class="rule-content">
+										<strong>Inverter Hardware Ceiling (50.0 kW)</strong>
+										<p>Solar generation cannot physically exceed the electrical rating of the inverter. Power is clipped at 50.0 kW.</p>
+									</div>
+								</div>
+								<div class="rule-card">
+									<div class="rule-icon"><CheckCircle2 size={15} class="text-emerald" /></div>
+									<div class="rule-content">
+										<strong>Facility Load Bounding</strong>
+										<p>Building power demand is kept strictly between the 10.0 kW baseload and 45.0 kW peak capacity.</p>
+									</div>
+								</div>
+
+							{:else if activeStage === 'dispatch'}
+								<div class="rule-card">
+									<div class="rule-icon"><BatteryCharging size={15} class="text-emerald" /></div>
+									<div class="rule-content">
+										<strong>Calculate Instantaneous Power Balance</strong>
+										<p><strong>Net Power</strong> = Solar Power minus Building Load Demand.</p>
+									</div>
+								</div>
+								<div class="rule-card">
+									<div class="rule-icon"><CheckCircle2 size={15} class="text-emerald" /></div>
+									<div class="rule-content">
+										<strong>Solar Surplus: Charge Battery</strong>
+										<p>When solar generation exceeds building demand (Net &gt; 0), excess electricity routes into battery storage for later use.</p>
+									</div>
+								</div>
+								<div class="rule-card">
+									<div class="rule-icon"><AlertTriangle size={15} class="text-rose" /></div>
+									<div class="rule-content">
+										<strong>Power Deficit: Discharge Battery</strong>
+										<p>When building demand exceeds solar generation (Net &lt; 0), stored battery energy discharges to avoid high peak-hour grid electricity tariffs.</p>
+									</div>
+								</div>
+							{/if}
 						</div>
 					{:else}
-						<div class="spec-box font-mono">
-							<p><strong>Total Solar:</strong> {totalPvKwh.toFixed(1)} kWh ({solarCoveragePct}% load coverage)</p>
-							<p><strong>Total Demand:</strong> {totalLoadKwh.toFixed(1)} kWh facility consumption</p>
-							<p><strong>Optimization Target:</strong> Mixed-Integer Linear Program (MILP) cost arbitrage</p>
+						<!-- Technical Spec Mode -->
+						<div class="tech-spec-container font-mono">
+							{#if activeStage === 'sanitizer'}
+								<div class="spec-block">
+									<span class="spec-label">MODULE:</span>
+									<code>ml_service/features/sanitizer.py :: TelemetrySanitizer</code>
+								</div>
+								<div class="spec-block">
+									<span class="spec-label">INPUT SCHEMA:</span>
+									<code>['timestamp', 'ghi', 'temp_amb', 'cloud_cover', 'p_pv', 'p_load']</code>
+								</div>
+								<div class="spec-block">
+									<span class="spec-label">FREQUENCY & GAP LIMIT:</span>
+									<p>Enforces <code>freq='h'</code> DatetimeIndex. Gaps &le; 3h linearly interpolated; Gaps &gt; 3h raise <code>TelemetryGapError</code>.</p>
+								</div>
+							{:else if activeStage === 'conditioning'}
+								<div class="spec-block">
+									<span class="spec-label">MODULE:</span>
+									<code>ml_service/features/pipeline.py :: FeaturePipeline</code>
+								</div>
+								<div class="spec-block">
+									<span class="spec-label">FROZEN LAG FEATURES:</span>
+									<code>p_pv_lag_0, p_pv_lag_1, p_pv_lag_23, p_pv_lag_24</code>
+								</div>
+								<div class="spec-block">
+									<span class="spec-label">ROLLING SUMMARY VECTORS:</span>
+									<code>mean_6h, std_6h, mean_24h, std_24h (computed strictly on [T-48h..T])</code>
+								</div>
+								<div class="spec-block">
+									<span class="spec-label">HORIZON CONDITIONING:</span>
+									<p>Conditioned on relative integer <code>h &in; [1..24]</code>, sin/cos hour, and sin/cos day-of-year.</p>
+								</div>
+							{:else if activeStage === 'inference'}
+								<div class="spec-block">
+									<span class="spec-label">ESTIMATOR:</span>
+									<code>lightgbm.LGBMRegressor(n_estimators=150, max_depth=6, num_leaves=31)</code>
+								</div>
+								<div class="spec-block">
+									<span class="spec-label">TRAINING MATRIX:</span>
+									<p>~8,688 origin steps expanded into 208,512 rows across 1 continuous year. CPU training time: ~2.5s per model.</p>
+								</div>
+								<div class="spec-block">
+									<span class="spec-label">VALIDATION ACCURACY:</span>
+									<p>PV Daylight nMAE: 0.26% (SLA &le; 5.0%) • Load 24h nMAE: 2.99% (SLA &le; 6.0%) • R&sup2; &gt; 0.93.</p>
+								</div>
+							{:else if activeStage === 'guard'}
+								<div class="spec-block">
+									<span class="spec-label">POST-PROCESSING:</span>
+									<code>ml_service/postprocessing/boundary_enforcer.py</code>
+								</div>
+								<div class="spec-block">
+									<span class="spec-label">PHYSICAL EQUATIONS:</span>
+									<code>P̂_pv = clip(P̂_pv, 0.0, 50.0) &times; 1_{'{GHI > 0}'}</code><br/>
+									<code>P̂_load = clip(P̂_load, 10.0, 45.0 &times; 1.2)</code>
+								</div>
+							{:else if activeStage === 'dispatch'}
+								<div class="spec-block">
+									<span class="spec-label">DISPATCH FORMULATION:</span>
+									<code>P_net = P̂_pv - P̂_load</code>
+								</div>
+								<div class="spec-block">
+									<span class="spec-label">OPTIMIZER TARGET:</span>
+									<p>Downstream Mixed-Integer Linear Program (MILP) battery state-of-charge (SoC) arbitrage against time-of-use tariffs.</p>
+								</div>
+							{/if}
 						</div>
 					{/if}
 				</div>
-			{/if}
-		</div>
-	</div>
+
+				<!-- Right Column: Visual Architecture / Context Graphic -->
+				<div class="inspector-col visual-col">
+					<h4 class="col-heading font-mono">
+						<span>SYSTEM VISUALIZATION & DATA CONTEXT</span>
+					</h4>
+
+					{#if activeStage === 'sanitizer'}
+						<div class="context-card font-mono">
+							<span class="card-title-mini">SELF-HEALING THRESHOLDS</span>
+							<div class="threshold-diagram">
+								<div class="thresh-item good">
+									<span class="thresh-val">0 to 3 Hours</span>
+									<span class="thresh-status">✓ Auto-Healed</span>
+									<span class="thresh-desc">Sensor packet loss. Linear interpolation recovers contiguous stream.</span>
+								</div>
+								<div class="thresh-divider"></div>
+								<div class="thresh-item bad">
+									<span class="thresh-val">&gt; 3 Hours</span>
+									<span class="thresh-status">⚠ Supervisory Alarm</span>
+									<span class="thresh-desc">Extended hardware outage. Stops pipeline to avoid hallucinated inputs.</span>
+								</div>
+							</div>
+						</div>
+
+					{:else if activeStage === 'conditioning'}
+						<!-- Spacious Visual Lag Timeline Map -->
+						<div class="context-card font-mono">
+							<div class="lag-map-title-row">
+								<span class="card-title-mini">WHY PAST MEASUREMENTS (LAGS) MATTER (ADR 0001)</span>
+								<span class="badge-mini font-mono">Origin Locked</span>
+							</div>
+
+							<p class="lag-intuitive-text font-sans">
+								Electrical demand repeats in daily 24-hour cycles. What the building used yesterday at 2:00 PM is the strongest baseline for predicting today at 2:00 PM.
+							</p>
+
+							<div class="spacious-lag-timeline">
+								<div class="timeline-lane past-lane">
+									<span class="lane-title">PAST READINGS (LOCKED AT TIME T)</span>
+									<div class="lane-chips">
+										<div class="chip-item">
+											<span class="chip-k">T - 24h</span>
+											<span class="chip-v">Daily baseline match</span>
+										</div>
+										<div class="chip-item">
+											<span class="chip-k">T - 6h..T</span>
+											<span class="chip-v">Rolling 6h moving mean</span>
+										</div>
+										<div class="chip-item">
+											<span class="chip-k">T - 1h</span>
+											<span class="chip-v">Immediate momentum ramp</span>
+										</div>
+										<div class="chip-item anchor-item">
+											<span class="chip-k">Time T</span>
+											<span class="chip-v">🔒 Anchor origin</span>
+										</div>
+									</div>
+								</div>
+
+								<div class="lock-barrier-row">
+									<div class="lock-line"></div>
+									<div class="lock-badge-pill">
+										<Lock size={12} class="text-sky" />
+										<span>ZERO LEAKAGE BARRIER</span>
+									</div>
+									<div class="lock-line"></div>
+								</div>
+
+								<div class="timeline-lane future-lane">
+									<span class="lane-title">24-HOUR FORWARD HORIZON</span>
+									<div class="future-steps-row">
+										<div class="step-chip">T+1h</div>
+										<div class="step-chip">T+2h</div>
+										<div class="step-chip">T+3h</div>
+										<div class="step-chip">...</div>
+										<div class="step-chip">T+24h</div>
+									</div>
+									<span class="future-weather-hint">+ 24h Numerical Weather Forecasts (GHI, Temp, Cloud)</span>
+								</div>
+							</div>
+						</div>
+
+					{:else if activeStage === 'inference'}
+						<div class="context-card font-mono">
+							<span class="card-title-mini">DUAL PARALLEL ESTIMATOR FLOW</span>
+							<div class="dual-model-diagram">
+								<div class="model-lane pv-lane">
+									<div class="model-box">
+										<span class="model-name">Solar LightGBM</span>
+										<span class="model-stat">50.0 kW Capacity</span>
+									</div>
+									<span class="model-out">Solar Forecast (P̂_pv)</span>
+								</div>
+								<div class="model-lane load-lane">
+									<div class="model-box">
+										<span class="model-name">Load LightGBM</span>
+										<span class="model-stat">45.0 kW Peak</span>
+									</div>
+									<span class="model-out">Building Demand (P̂_load)</span>
+								</div>
+							</div>
+							<div class="inference-speed-badge">
+								<span>Evaluates all 24 horizons simultaneously in <strong>{latencyMs.toFixed(1)} ms</strong></span>
+							</div>
+						</div>
+
+					{:else if activeStage === 'guard'}
+						<div class="context-card font-mono">
+							<span class="card-title-mini">PHYSICAL HARDWARE BOUNDARIES</span>
+							<div class="bounds-stack">
+								<div class="bound-row">
+									<span class="bound-name">Solar Night Bound:</span>
+									<span class="bound-rule">GHI &le; 0 &rarr; 0.0 kW strictly enforced</span>
+								</div>
+								<div class="bound-row">
+									<span class="bound-name">Inverter Ceiling:</span>
+									<span class="bound-rule">P̂_pv capped at 50.0 kW</span>
+								</div>
+								<div class="bound-row">
+									<span class="bound-name">Building Baseload:</span>
+									<span class="bound-rule">P̂_load baseline &ge; 10.0 kW</span>
+								</div>
+							</div>
+						</div>
+
+					{:else if activeStage === 'dispatch'}
+						<div class="context-card font-mono">
+							<span class="card-title-mini">24-HOUR ENERGY SUMMARY</span>
+							<div class="dispatch-summary-box">
+								<div class="summary-line">
+									<span>Total Solar Generation:</span>
+									<strong class="text-amber">{totalPvKwh.toFixed(1)} kWh</strong>
+								</div>
+								<div class="summary-line">
+									<span>Total Facility Demand:</span>
+									<strong class="text-sky">{totalLoadKwh.toFixed(1)} kWh</strong>
+								</div>
+								<div class="summary-line">
+									<span>Solar Load Coverage:</span>
+									<strong>{solarCoveragePct}%</strong>
+								</div>
+								<div class="summary-line highlight-line">
+									<span>Net Storage Balance:</span>
+									<strong class={netBalanceKwh >= 0 ? 'text-emerald' : 'text-rose'}>
+										{netBalanceKwh >= 0 ? '+' : ''}{netBalanceKwh.toFixed(1)} kWh
+									</strong>
+								</div>
+							</div>
+						</div>
+					{/if}
+				</div>
+			</div>
+		</section>
+	{/if}
 </div>
 
 <style>
@@ -563,16 +810,16 @@
 		color: var(--text-muted);
 	}
 
-	/* Dataflow ribbon connecting the 5 stages */
+	/* Dataflow ribbon */
 	.dataflow-ribbon {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 0.65rem 1.5rem;
+		padding: 0.75rem 2rem;
 		background: rgba(18, 16, 14, 0.5);
 		border-bottom: 1px solid var(--hairline);
 		overflow-x: auto;
-		gap: 0.5rem;
+		gap: 0.75rem;
 	}
 
 	.flow-node {
@@ -580,11 +827,11 @@
 		align-items: center;
 		gap: 0.45rem;
 		background: transparent;
-		border: none;
+		border: 1px solid transparent;
 		color: var(--text-muted);
 		font-size: 0.72rem;
-		padding: 0.25rem 0.5rem;
-		border-radius: 4px;
+		padding: 0.3rem 0.65rem;
+		border-radius: 999px;
 		cursor: pointer;
 		white-space: nowrap;
 		transition: all 0.25s var(--ease);
@@ -592,409 +839,708 @@
 
 	.flow-node:hover {
 		color: var(--text-primary);
+		background: var(--surface-sunken);
 	}
 
 	.flow-node.active {
 		color: var(--text-primary);
 		background: var(--surface-sunken);
+		border-color: var(--hairline-strong);
 		font-weight: 500;
 	}
 
-	.node-dot {
-		width: 6px;
-		height: 6px;
-		border-radius: 50%;
-		background: var(--text-muted);
-		transition: background-color 0.25s ease;
-	}
-
-	.flow-node.active .node-dot {
-		background: var(--color-pv);
-		box-shadow: 0 0 8px var(--color-pv);
-	}
-
-	.flow-node.highlight-node .node-dot {
-		background: var(--color-load);
-	}
-
-	.flow-arrow {
+	:global(.flow-arrow) {
 		color: var(--hairline-strong);
-		font-size: 0.8rem;
 		user-select: none;
+		flex-shrink: 0;
 	}
 
-	.stages-container {
+	/* Balanced 5 Stage Cards Grid */
+	.stages-overview-grid {
 		display: grid;
 		grid-template-columns: repeat(5, minmax(0, 1fr));
 		width: 100%;
+		border-bottom: 1px solid var(--hairline);
 	}
 
 	@media (max-width: 992px) {
-		.stages-container {
+		.stages-overview-grid {
 			grid-template-columns: 1fr;
 		}
 
-		.stage-cell {
+		.stage-card {
 			border-right: none !important;
 			border-bottom: 1px solid var(--hairline);
 		}
 
-		.stage-cell:last-child {
+		.stage-card:last-child {
 			border-bottom: none;
 		}
 	}
 
-	.stage-cell {
-		padding: 1.6rem 1.4rem 1.5rem;
+	.stage-card {
+		padding: 1.4rem 1.25rem 1.2rem;
+		border: none;
 		border-right: 1px solid var(--hairline);
+		background: transparent;
+		text-align: left;
 		display: flex;
 		flex-direction: column;
-		gap: 1.1rem;
-		min-width: 0;
-		background: transparent;
-		transition: background-color 0.3s ease;
+		justify-content: space-between;
+		gap: 1rem;
+		cursor: pointer;
+		transition: all 0.3s var(--ease);
+		position: relative;
 	}
 
-	.stage-cell.is-active {
-		background: rgba(255, 255, 255, 0.015);
+	.stage-card:hover {
+		background: rgba(255, 255, 255, 0.02);
 	}
 
-	.stage-cell:last-child {
+	.stage-card.selected {
+		background: rgba(255, 255, 255, 0.035);
+		box-shadow: inset 0 2px 0 var(--color-pv);
+	}
+
+	.stage-card:last-child {
 		border-right: none;
 	}
 
-	.stage-header-row {
-		display: grid;
-		grid-template-columns: auto minmax(0, 1fr);
-		align-items: start;
-		gap: 0.7rem 0.75rem;
+	.card-head {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.65rem;
 	}
 
-	.stage-num {
+	.stage-num-badge {
+		width: 24px;
+		height: 24px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 28px;
-		height: 28px;
 		border-radius: 50%;
 		background: var(--surface-sunken);
-		box-shadow: inset 0 0 0 1px var(--hairline-strong);
-		font-size: 0.66rem;
-		font-weight: 500;
+		border: 1px solid var(--hairline-strong);
+		font-size: 0.62rem;
 		color: var(--text-secondary);
+		flex-shrink: 0;
 	}
 
-	.stage-title-group {
+	.stage-card.selected .stage-num-badge {
+		background: var(--color-pv-muted);
+		color: var(--color-pv-ink);
+		border-color: var(--color-pv);
+	}
+
+	.stage-label-group {
 		min-width: 0;
 	}
 
-	.stage-title {
+	.stage-card-title {
 		margin: 0;
-		font-size: 0.92rem;
+		font-size: 0.88rem;
 		font-weight: 600;
-		letter-spacing: -0.01em;
 		color: var(--text-primary);
+		line-height: 1.25;
+	}
+
+	.stage-card-sub {
+		display: block;
+		font-size: 0.7rem;
+		color: var(--text-muted);
+		margin-top: 0.15rem;
 		line-height: 1.3;
 	}
 
-	.stage-sub {
-		display: block;
-		font-size: 0.74rem;
-		color: var(--text-muted);
-		margin-top: 0.15rem;
-		line-height: 1.35;
-	}
-
-	.stage-btn {
-		grid-column: 2;
-		justify-self: start;
-		font-family: var(--font-sans);
-		color: var(--text-secondary);
-		border-radius: 999px;
-		padding: 0.28rem 0.8rem;
-		font-size: 0.72rem;
-		font-weight: 500;
-		box-shadow: inset 0 0 0 1px var(--hairline-strong);
-		cursor: pointer;
-		transition: all 0.3s var(--ease);
-	}
-
-	.stage-btn:hover {
-		background: var(--surface-sunken);
-		color: var(--text-primary);
-	}
-
-	.stage-body {
+	.card-stats {
 		display: flex;
 		flex-direction: column;
-		font-size: 0.76rem;
+		gap: 0.35rem;
+		font-size: 0.72rem;
+		border-top: 1px solid var(--hairline);
+		padding-top: 0.65rem;
 	}
 
-	.stat-line {
+	.card-stat-row {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
 		gap: 0.5rem;
-		padding: 0.55rem 0;
-		border-top: 1px solid var(--hairline);
 	}
 
-	.stat-label {
+	.stat-lbl {
 		color: var(--text-muted);
 	}
 
-	.stat-val {
+	.stat-num {
 		color: var(--text-primary);
 		font-weight: 500;
-		font-size: 0.74rem;
-		text-align: right;
 	}
 
-	.stat-val.highlight {
+	.stat-num.highlight {
 		color: var(--color-pv-ink);
 	}
 
-	.stat-val.surplus {
+	.stat-num.surplus {
 		color: var(--color-surplus-ink);
 	}
 
-	.stat-val.deficit {
+	.stat-num.deficit {
 		color: var(--color-deficit-ink);
 	}
 
 	.stat-badge {
-		font-size: 0.68rem;
-		font-weight: 500;
-		padding: 0.15rem 0.6rem;
+		font-size: 0.64rem;
+		padding: 0.1rem 0.5rem;
 		border-radius: 999px;
 		background: var(--surface-sunken);
 		color: var(--text-secondary);
-		text-align: right;
-	}
-
-	.stat-badge.lag-badge {
-		background: rgba(2, 132, 199, 0.12);
-		color: var(--color-load-ink);
 	}
 
 	.stat-badge.healed {
-		color: var(--color-pv-ink);
 		background: var(--color-pv-muted);
+		color: var(--color-pv-ink);
 	}
 
-	.stat-badge.surplus-badge {
-		color: var(--color-surplus-ink);
-		background: var(--color-surplus-muted);
+	.stat-badge.anchor-badge {
+		background: rgba(2, 132, 199, 0.15);
+		color: var(--color-load-ink);
 	}
 
-	.stat-badge.deficit-badge {
-		color: var(--color-deficit-ink);
-		background: var(--color-deficit-muted);
-	}
-
-	.energy-track {
-		height: 6px;
+	.mini-energy-bar {
+		height: 4px;
 		width: 100%;
 		border-radius: 999px;
 		overflow: hidden;
 		display: flex;
 		background: var(--surface-sunken);
+		margin-bottom: 0.2rem;
 	}
 
-	.energy-fill {
+	.energy-chunk {
 		height: 100%;
 	}
 
-	.pv-fill {
+	.pv-chunk {
 		background: var(--color-pv);
 	}
 
-	.load-fill {
+	.load-chunk {
 		background: var(--color-load);
 	}
 
-	/* Drawers */
-	.stage-drawer {
-		background: var(--surface-soft);
-		box-shadow: inset 0 0 0 1px var(--hairline);
-		border-radius: var(--radius-inner);
-		padding: 0.9rem;
-		font-size: 0.74rem;
+	.card-footer {
 		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-		color: var(--text-secondary);
+		justify-content: flex-end;
 	}
 
-	/* STE-100 Rule Box */
-	.ste-box {
-		display: flex;
-		flex-direction: column;
-		gap: 0.55rem;
-	}
-
-	.ste-rule {
-		display: flex;
-		flex-direction: column;
-		gap: 0.18rem;
-	}
-
-	.rule-tag {
-		font-size: 0.62rem;
-		font-weight: 600;
+	.action-hint {
+		font-size: 0.65rem;
 		color: var(--text-muted);
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
+		transition: color 0.25s ease;
 	}
 
-	.ste-rule p {
-		margin: 0;
-		line-height: 1.45;
+	.stage-card:hover .action-hint,
+	.stage-card.selected .action-hint {
 		color: var(--text-primary);
 	}
 
-	.spec-box {
+	/* Wide, Full-Width Detail Inspector Panel */
+	.wide-inspector-panel {
+		background: var(--surface-soft);
+		border-bottom: 1px solid var(--hairline);
+		padding: 1.75rem 2rem 2rem;
 		display: flex;
 		flex-direction: column;
-		gap: 0.45rem;
-		font-size: 0.72rem;
+		gap: 1.5rem;
+		animation: reveal 0.4s var(--ease) both;
 	}
 
-	.spec-box p {
+	@keyframes reveal {
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+
+	.inspector-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		gap: 1.5rem;
+		border-bottom: 1px solid var(--hairline);
+		padding-bottom: 1.25rem;
+	}
+
+	.inspector-title-group {
+		display: flex;
+		align-items: flex-start;
+		gap: 1rem;
+	}
+
+	.inspector-icon-pill {
+		width: 38px;
+		height: 38px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 12px;
+		background: var(--surface-sunken);
+		border: 1px solid var(--hairline-strong);
+		flex-shrink: 0;
+	}
+
+	.inspector-badge-row {
+		display: flex;
+		align-items: center;
+		gap: 0.65rem;
+		margin-bottom: 0.25rem;
+	}
+
+	.stage-tag {
+		font-size: 0.62rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		color: var(--color-pv-ink);
+	}
+
+	.spec-mode-badge {
+		font-size: 0.62rem;
+		color: var(--text-muted);
+		background: var(--surface-sunken);
+		padding: 0.15rem 0.5rem;
+		border-radius: 999px;
+	}
+
+	.inspector-title {
 		margin: 0;
+		font-size: 1.25rem;
+		font-weight: 600;
+		color: var(--text-primary);
+		letter-spacing: -0.01em;
+	}
+
+	.close-inspector-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		background: var(--surface-sunken);
+		border: 1px solid var(--hairline-strong);
+		color: var(--text-secondary);
+		padding: 0.35rem 0.85rem;
+		border-radius: 999px;
+		font-size: 0.72rem;
+		cursor: pointer;
+		transition: all 0.25s var(--ease);
+	}
+
+	.close-inspector-btn:hover {
+		color: var(--text-primary);
+		background: var(--surface);
+	}
+
+	/* Spacious 2-Column Inspector Layout */
+	.inspector-body-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 2rem;
+		align-items: start;
+	}
+
+	@media (max-width: 900px) {
+		.inspector-body-grid {
+			grid-template-columns: 1fr;
+			gap: 1.5rem;
+		}
+	}
+
+	.inspector-col {
+		display: flex;
+		flex-direction: column;
+		gap: 0.9rem;
+	}
+
+	.col-heading {
+		margin: 0;
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		color: var(--text-muted);
+	}
+
+	.rules-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.rule-card {
+		display: flex;
+		gap: 0.85rem;
+		align-items: flex-start;
+		background: var(--surface-sunken);
+		border: 1px solid var(--hairline);
+		border-radius: var(--radius-inner);
+		padding: 0.95rem 1.1rem;
+	}
+
+	.rule-icon {
+		flex-shrink: 0;
+		margin-top: 0.1rem;
+	}
+
+	.rule-content {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		font-size: 0.8rem;
+	}
+
+	.rule-content strong {
+		color: var(--text-primary);
+	}
+
+	.rule-content p {
+		margin: 0;
+		color: var(--text-secondary);
 		line-height: 1.45;
 	}
 
-	.spec-box code {
-		color: var(--color-pv-ink);
-		background: var(--surface-sunken);
-		padding: 0.1rem 0.35rem;
-		border-radius: 3px;
-	}
-
-	/* Lag Visual Map Graphic */
-	.lag-visual-map {
-		background: var(--surface-sunken);
-		border: 1px solid var(--hairline);
-		border-radius: 6px;
-		padding: 0.75rem;
+	/* Tech Spec Mode Container */
+	.tech-spec-container {
 		display: flex;
 		flex-direction: column;
-		gap: 0.6rem;
+		gap: 0.85rem;
+		background: var(--surface-sunken);
+		border: 1px solid var(--hairline);
+		border-radius: var(--radius-inner);
+		padding: 1.25rem;
+		font-size: 0.74rem;
 	}
 
-	.lag-map-header {
-		font-size: 0.65rem;
-		font-weight: 600;
-		color: var(--color-load-ink);
+	.spec-block {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.spec-label {
+		font-size: 0.64rem;
+		font-weight: 700;
+		color: var(--color-pv-ink);
 		letter-spacing: 0.06em;
 	}
 
-	.lag-timeline-graphic {
-		display: flex;
-		flex-direction: column;
-		gap: 0.6rem;
+	.spec-block code {
+		color: var(--text-primary);
+		background: rgba(255, 255, 255, 0.04);
+		padding: 0.25rem 0.5rem;
+		border-radius: 4px;
+		display: inline-block;
 	}
 
-	.timeline-block {
-		display: flex;
-		flex-direction: column;
-		gap: 0.35rem;
+	.spec-block p {
+		margin: 0;
+		color: var(--text-secondary);
+		line-height: 1.45;
 	}
 
-	.block-label {
-		font-size: 0.6rem;
+	/* Right Visual Context Cards */
+	.context-card {
+		background: var(--surface-sunken);
+		border: 1px solid var(--hairline);
+		border-radius: var(--radius-inner);
+		padding: 1.25rem;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	.card-title-mini {
+		font-size: 0.68rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		color: var(--color-load-ink);
+	}
+
+	.lag-map-title-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.badge-mini {
+		font-size: 0.62rem;
+		background: rgba(2, 132, 199, 0.15);
+		color: var(--color-load-ink);
+		padding: 0.15rem 0.5rem;
+		border-radius: 999px;
+	}
+
+	.lag-intuitive-text {
+		margin: 0;
+		font-size: 0.8rem;
+		color: var(--text-secondary);
+		line-height: 1.5;
+	}
+
+	.spacious-lag-timeline {
+		display: flex;
+		flex-direction: column;
+		gap: 0.85rem;
+	}
+
+	.timeline-lane {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.lane-title {
+		font-size: 0.62rem;
 		color: var(--text-muted);
-		letter-spacing: 0.04em;
+		letter-spacing: 0.05em;
 	}
 
-	.lag-chips {
+	.lane-chips {
 		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: 0.4rem;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.5rem;
 	}
 
-	.lag-chip {
+	.chip-item {
 		background: rgba(255, 255, 255, 0.03);
 		border: 1px solid var(--hairline-strong);
-		border-radius: 4px;
-		padding: 0.35rem 0.5rem;
+		padding: 0.45rem 0.65rem;
+		border-radius: 6px;
 		display: flex;
 		flex-direction: column;
 		gap: 0.1rem;
 	}
 
-	.lag-chip.origin-chip {
+	.chip-item.anchor-item {
 		border-color: rgba(2, 132, 199, 0.4);
 		background: rgba(2, 132, 199, 0.1);
 	}
 
-	.chip-time {
-		font-size: 0.7rem;
-		font-weight: 600;
+	.chip-k {
+		font-size: 0.74rem;
+		font-weight: 700;
 		color: var(--text-primary);
 	}
 
-	.chip-desc {
-		font-size: 0.62rem;
+	.chip-v {
+		font-size: 0.65rem;
 		color: var(--text-muted);
 	}
 
-	.timeline-divider {
+	.lock-barrier-row {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
-		padding: 0.2rem 0;
+		gap: 0.75rem;
+		margin: 0.2rem 0;
 	}
 
-	.lock-icon {
-		font-size: 0.65rem;
-		font-weight: 600;
-		color: #eab308;
-		background: rgba(234, 179, 8, 0.1);
-		border: 1px solid rgba(234, 179, 8, 0.3);
-		padding: 0.15rem 0.5rem;
-		border-radius: 999px;
-		white-space: nowrap;
-	}
-
-	.divider-line {
+	.lock-line {
 		flex: 1;
 		height: 1px;
 		background: dashed 1px var(--hairline-strong);
 	}
 
-	.horizon-chips {
+	.lock-badge-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		font-size: 0.64rem;
+		font-weight: 700;
+		color: #eab308;
+		background: rgba(234, 179, 8, 0.1);
+		border: 1px solid rgba(234, 179, 8, 0.3);
+		padding: 0.25rem 0.65rem;
+		border-radius: 999px;
+		letter-spacing: 0.05em;
+	}
+
+	.future-steps-row {
 		display: flex;
-		gap: 0.35rem;
+		gap: 0.4rem;
 		flex-wrap: wrap;
 	}
 
-	.horizon-chip {
+	.step-chip {
 		background: rgba(255, 255, 255, 0.03);
 		border: 1px solid var(--hairline);
-		padding: 0.2rem 0.45rem;
-		border-radius: 3px;
-		font-size: 0.66rem;
+		padding: 0.25rem 0.55rem;
+		border-radius: 4px;
+		font-size: 0.7rem;
 		color: var(--text-secondary);
 	}
 
-	.future-note {
-		font-size: 0.62rem;
+	.future-weather-hint {
+		font-size: 0.65rem;
 		color: var(--text-muted);
-		margin-top: 0.2rem;
 	}
+
+	/* Threshold diagram for Stage 01 */
+	.threshold-diagram {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.thresh-item {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		padding: 0.75rem;
+		border-radius: 6px;
+		font-size: 0.72rem;
+	}
+
+	.thresh-item.good {
+		background: rgba(18, 160, 113, 0.06);
+		border: 1px solid rgba(18, 160, 113, 0.25);
+	}
+
+	.thresh-item.bad {
+		background: rgba(224, 54, 95, 0.06);
+		border: 1px solid rgba(224, 54, 95, 0.25);
+	}
+
+	.thresh-val {
+		font-weight: 700;
+		font-size: 0.8rem;
+		color: var(--text-primary);
+	}
+
+	.thresh-status {
+		font-weight: 600;
+		font-size: 0.72rem;
+	}
+
+	.thresh-item.good .thresh-status { color: var(--color-surplus-ink); }
+	.thresh-item.bad .thresh-status { color: var(--color-deficit-ink); }
+
+	.thresh-desc {
+		font-size: 0.68rem;
+		color: var(--text-secondary);
+	}
+
+	/* Stage 03 Dual Model Diagram */
+	.dual-model-diagram {
+		display: flex;
+		gap: 1rem;
+	}
+
+	.model-lane {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+
+	.model-box {
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid var(--hairline-strong);
+		padding: 0.75rem;
+		border-radius: 6px;
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+	}
+
+	.model-name {
+		font-weight: 600;
+		color: var(--text-primary);
+		font-size: 0.76rem;
+	}
+
+	.model-stat {
+		font-size: 0.68rem;
+		color: var(--text-muted);
+	}
+
+	.model-out {
+		font-size: 0.66rem;
+		color: var(--color-pv-ink);
+	}
+
+	.load-lane .model-out {
+		color: var(--color-load-ink);
+	}
+
+	.inference-speed-badge {
+		font-size: 0.7rem;
+		color: var(--text-secondary);
+		background: var(--surface-soft);
+		padding: 0.5rem 0.75rem;
+		border-radius: 4px;
+	}
+
+	/* Stage 04 Bounds stack */
+	.bounds-stack {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		font-size: 0.74rem;
+	}
+
+	.bound-row {
+		display: flex;
+		justify-content: space-between;
+		padding: 0.45rem 0;
+		border-bottom: 1px solid var(--hairline);
+	}
+
+	.bound-name {
+		color: var(--text-muted);
+	}
+
+	.bound-rule {
+		color: var(--text-primary);
+		font-weight: 500;
+	}
+
+	/* Stage 05 Dispatch summary */
+	.dispatch-summary-box {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		font-size: 0.75rem;
+	}
+
+	.summary-line {
+		display: flex;
+		justify-content: space-between;
+		color: var(--text-secondary);
+	}
+
+	.summary-line.highlight-line {
+		border-top: 1px solid var(--hairline);
+		padding-top: 0.5rem;
+		font-size: 0.8rem;
+	}
+
+	/* Text colors */
+	.text-amber { color: var(--color-pv-ink); }
+	.text-sky { color: var(--color-load-ink); }
+	.text-emerald { color: var(--color-surplus-ink); }
+	.text-rose { color: var(--color-deficit-ink); }
 
 	@media (max-width: 760px) {
 		.pipeline-header {
 			padding-inline: 1.25rem;
 		}
 
-		.pipeline-title {
-			font-size: 1.55rem;
+		.wide-inspector-panel {
+			padding-inline: 1.25rem;
 		}
 
-		.lag-chips {
+		.lane-chips {
 			grid-template-columns: 1fr;
 		}
 	}

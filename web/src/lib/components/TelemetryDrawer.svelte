@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { HistoricalReading, WeatherForecastStep } from '../types';
+	import { Lock, TrendingUp, RotateCcw } from '@lucide/svelte';
 
 	interface Props {
 		history: HistoricalReading[];
@@ -144,11 +145,20 @@
 								<td>{row.temp_amb.toFixed(1)} °C</td>
 								<td>
 									{#if isOrigin}
-										<span class="func-pill origin-pill">🔒 Current level (Anchor)</span>
+										<span class="func-pill origin-pill">
+											<Lock size={11} class="text-sky" />
+											<span>Current level (Anchor)</span>
+										</span>
 									{:else if isLag1}
-										<span class="func-pill momentum-pill">📈 Immediate ramp</span>
+										<span class="func-pill momentum-pill">
+											<TrendingUp size={11} class="text-amber" />
+											<span>Immediate ramp</span>
+										</span>
 									{:else if isLag24}
-										<span class="func-pill baseline-pill">🔁 Daily baseline match</span>
+										<span class="func-pill baseline-pill">
+											<RotateCcw size={11} />
+											<span>Daily baseline match</span>
+										</span>
 									{:else if isLag23}
 										<span class="func-pill">23h lead-in</span>
 									{:else}
