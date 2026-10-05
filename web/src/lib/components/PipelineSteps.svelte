@@ -23,7 +23,8 @@
 		source = ''
 	}: Props = $props();
 
-	let activeStage = $state<string | null>(null);
+	let activeStage = $state<string | null>('conditioning');
+	let showTechSpecs = $state(false);
 
 	function toggleStage(id: string) {
 		activeStage = activeStage === id ? null : id;
@@ -51,13 +52,24 @@
 </script>
 
 <div class="pipeline-panel">
+	<!-- Header -->
 	<div class="pipeline-header">
 		<div>
-			<h2 class="pipeline-title">Execution pipeline audit</h2>
-			<p class="pipeline-subtitle">Deterministic transformation from sensor history to dispatch schedule</p>
+			<h2 class="pipeline-title">Execution pipeline & architecture audit</h2>
+			<p class="pipeline-subtitle">
+				Deterministic 5-stage transformation from raw sensor readings to battery dispatch
+			</p>
 		</div>
 
 		<div class="pipeline-meta font-mono">
+			<button 
+				class="mode-toggle-btn"
+				class:active={showTechSpecs}
+				onclick={() => (showTechSpecs = !showTechSpecs)}
+				title="Toggle between ASD-STE100 operational rules and low-level code/math specifications"
+			>
+				{showTechSpecs ? 'Show simple rules' : 'Show technical specs'}
+			</button>
 			<span class="source-tag" class:live={isLiveBackend}>
 				{isLiveBackend ? 'FastAPI :8000' : 'Simulation'}
 			</span>
@@ -65,148 +77,343 @@
 		</div>
 	</div>
 
+	<!-- Visual Dataflow Connector Ribbon -->
+	<div class="dataflow-ribbon font-mono">
+		<button 
+			class="flow-node" 
+			class:active={activeStage === 'sanitizer'}
+			onclick={() => toggleStage('sanitizer')}
+		>
+			<span class="node-dot"></span>
+			<span class="node-text">01 Data Sanitizer</span>
+		</button>
+		<div class="flow-arrow" aria-hidden="true">→</div>
+		
+		<button 
+			class="flow-node highlight-node" 
+			class:active={activeStage === 'conditioning'}
+			onclick={() => toggleStage('conditioning')}
+		>
+			<span class="node-dot"></span>
+			<span class="node-text">02 Lags & Origin Lock</span>
+		</button>
+		<div class="flow-arrow" aria-hidden="true">→</div>
+
+		<button 
+			class="flow-node" 
+			class:active={activeStage === 'inference'}
+			onclick={() => toggleStage('inference')}
+		>
+			<span class="node-dot"></span>
+			<span class="node-text">03 Dual LightGBM</span>
+		</button>
+		<div class="flow-arrow" aria-hidden="true">→</div>
+
+		<button 
+			class="flow-node" 
+			class:active={activeStage === 'guard'}
+			onclick={() => toggleStage('guard')}
+		>
+			<span class="node-dot"></span>
+			<span class="node-text">04 Physical Limits</span>
+		</button>
+		<div class="flow-arrow" aria-hidden="true">→</div>
+
+		<button 
+			class="flow-node" 
+			class:active={activeStage === 'dispatch'}
+			onclick={() => toggleStage('dispatch')}
+		>
+			<span class="node-dot"></span>
+			<span class="node-text">05 Battery Dispatch</span>
+		</button>
+	</div>
+
+	<!-- Stage Grid -->
 	<div class="stages-container">
-		<!-- Stage 1 -->
-		<div class="stage-cell">
+		<!-- Stage 01: Sanitizer -->
+		<div class="stage-cell" class:is-active={activeStage === 'sanitizer'}>
 			<div class="stage-header-row">
 				<span class="stage-num font-mono">01</span>
 				<div class="stage-title-group">
-					<h3 class="stage-title">Data sanitizer</h3>
-					<span class="stage-sub">Lookback buffer healing</span>
+					<h3 class="stage-title">Clean sensor data</h3>
+					<span class="stage-sub">Self-healing history buffer</span>
 				</div>
 				<button class="stage-btn font-mono" onclick={() => toggleStage('sanitizer')}>
 					{activeStage === 'sanitizer' ? 'Close' : 'Inspect'}
 				</button>
 			</div>
 
-			<div class="stage-body font-mono">
+			<div class="stage-body">
 				<div class="stat-line">
-					<span class="stat-label">Buffer size</span>
-					<span class="stat-val">{historyCount}h</span>
+					<span class="stat-label">Buffer window</span>
+					<span class="stat-val font-mono">{historyCount}h contiguous</span>
 				</div>
 				<div class="stat-line">
-					<span class="stat-label">Feed status</span>
+					<span class="stat-label">Signal status</span>
 					<span class="stat-badge" class:healed={hasGap}>
-						{hasGap ? `${gapHours}h healed` : 'Continuous'}
+						{hasGap ? `${gapHours}h filled (Healed)` : 'Continuous stream'}
 					</span>
 				</div>
 			</div>
 
 			{#if activeStage === 'sanitizer'}
-				<div class="stage-drawer font-mono">
-					<p><strong>Input:</strong> 48h rolling sensor logs [T-48h..T]</p>
-					<p><strong>Logic:</strong> ≤3h gap interpolation + night zero fill</p>
-					<p><strong>Output:</strong> 49-row contiguous telemetry matrix</p>
+				<div class="stage-drawer">
+					{#if !showTechSpecs}
+						<div class="ste-box">
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">RULE</span>
+								<p>Collect 48 hours of sensor history before origin time T.</p>
+							</div>
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">RULE</span>
+								<p>If data gaps are 3 hours or less, fill missing values automatically.</p>
+							</div>
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">RULE</span>
+								<p>If data gaps exceed 3 hours, stop the pipeline and trigger an alarm.</p>
+							</div>
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">RULE</span>
+								<p>If the sun is down (irradiance = 0), force missing solar values to 0.0 kW.</p>
+							</div>
+						</div>
+					{:else}
+						<div class="spec-box font-mono">
+							<p><strong>Input:</strong> 48h rolling sensor DataFrame [T-48h..T]</p>
+							<p><strong>Algorithm:</strong> Linear interpolation for gaps ≤ 3h</p>
+							<p><strong>Guard:</strong> Raise <code>TelemetryGapError</code> on dropouts &gt; 3h</p>
+							<p><strong>Output:</strong> Contiguous 49-row matrix with zero null values</p>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>
 
-		<!-- Stage 2 -->
-		<div class="stage-cell">
+		<!-- Stage 02: Feature Lags & Origin Lock (FOCAL POINT FOR LAGS) -->
+		<div class="stage-cell stage-lags-cell" class:is-active={activeStage === 'conditioning'}>
 			<div class="stage-header-row">
 				<span class="stage-num font-mono">02</span>
 				<div class="stage-title-group">
-					<h3 class="stage-title">Conditioning</h3>
-					<span class="stage-sub">Origin-anchored context</span>
+					<h3 class="stage-title">Feature lags & origin lock</h3>
+					<span class="stage-sub">Historical memory frozen at time T</span>
 				</div>
 				<button class="stage-btn font-mono" onclick={() => toggleStage('conditioning')}>
 					{activeStage === 'conditioning' ? 'Close' : 'Inspect'}
 				</button>
 			</div>
 
-			<div class="stage-body font-mono">
+			<div class="stage-body">
 				<div class="stat-line">
-					<span class="stat-label">Origin [T]</span>
-					<span class="stat-val">{originTime}</span>
+					<span class="stat-label">Origin lock [T]</span>
+					<span class="stat-val font-mono">{originTime} (Locked)</span>
 				</div>
 				<div class="stat-line">
-					<span class="stat-label">Leakage</span>
-					<span class="stat-badge">Zero (frozen)</span>
+					<span class="stat-label">Daily lag [T-24h]</span>
+					<span class="stat-badge lag-badge">Yesterday baseline</span>
+				</div>
+				<div class="stat-line">
+					<span class="stat-label">Momentum [T-1h]</span>
+					<span class="stat-badge lag-badge">Immediate trend</span>
 				</div>
 			</div>
 
 			{#if activeStage === 'conditioning'}
-				<div class="stage-drawer font-mono">
-					<p><strong>Input:</strong> Telemetry frozen at T + 24h NWP weather</p>
-					<p><strong>Logic:</strong> Cyclical time encodings + explicit horizon index</p>
-					<p><strong>Output:</strong> 24 horizon-conditioned feature vectors</p>
+				<div class="stage-drawer">
+					<!-- Visual Lag Architecture Map -->
+					<div class="lag-visual-map">
+						<div class="lag-map-header font-mono">
+							<span>HOW LAGS WORK (ADR 0001)</span>
+						</div>
+
+						<div class="lag-timeline-graphic">
+							<!-- Past section -->
+							<div class="timeline-block past-block">
+								<span class="block-label font-mono">PAST SENSOR MEMORY (LOCKED AT T)</span>
+								<div class="lag-chips font-mono">
+									<div class="lag-chip" title="Reading from 24 hours ago (matches daily cycle)">
+										<span class="chip-time">T-24h</span>
+										<span class="chip-desc">Daily baseline</span>
+									</div>
+									<div class="lag-chip" title="Rolling 6-hour power mean (moving energy level)">
+										<span class="chip-time">T-6h..T</span>
+										<span class="chip-desc">Rolling mean</span>
+									</div>
+									<div class="lag-chip" title="Reading from 1 hour ago (immediate ramp)">
+										<span class="chip-time">T-1h</span>
+										<span class="chip-desc">Momentum</span>
+									</div>
+									<div class="lag-chip origin-chip" title="Current reading right at the forecast moment">
+										<span class="chip-time">T</span>
+										<span class="chip-desc">Anchor</span>
+									</div>
+								</div>
+							</div>
+
+							<!-- Lock Barrier -->
+							<div class="timeline-divider" title="History freezes here. Model cannot read future sensor data.">
+								<span class="lock-icon font-mono">🔒 LOCK</span>
+								<span class="divider-line"></span>
+							</div>
+
+							<!-- Future section -->
+							<div class="timeline-block future-block">
+								<span class="block-label font-mono">24H FORWARD HORIZON</span>
+								<div class="horizon-chips font-mono">
+									<div class="horizon-chip">T+1h</div>
+									<div class="horizon-chip">T+2h</div>
+									<div class="horizon-chip">...</div>
+									<div class="horizon-chip">T+24h</div>
+								</div>
+								<span class="future-note font-mono">+ 24h Numerical Weather Forecast</span>
+							</div>
+						</div>
+					</div>
+
+					{#if !showTechSpecs}
+						<div class="ste-box">
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">DEFINITION</span>
+								<p><strong>What is a lag?</strong> A lag is a sensor measurement from the past.</p>
+							</div>
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">RULE 1</span>
+								<p>Use the power from 24 hours ago (T-24h) as the daily baseline. Facilities follow daily human schedules.</p>
+							</div>
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">RULE 2</span>
+								<p>Use the power from 1 hour ago (T-1h) to detect whether power is ramping up or down.</p>
+							</div>
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">RULE 3</span>
+								<p>Lock all lags at origin hour T. Do not use predicted numbers as lags. This stops error cascade.</p>
+							</div>
+						</div>
+					{:else}
+						<div class="spec-box font-mono">
+							<p><strong>Lag Features:</strong> <code>lag_0, lag_1, lag_23, lag_24</code></p>
+							<p><strong>Rolling Windows:</strong> <code>mean_6h, std_6h, mean_24h, std_24h</code></p>
+							<p><strong>Horizon Index:</strong> Conditioned explicitly on integer <code>h ∈ [1..24]</code></p>
+							<p><strong>Advantage:</strong> Eliminates autoregressive multi-step drift. No feedback error loop.</p>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>
 
-		<!-- Stage 3 -->
-		<div class="stage-cell">
+		<!-- Stage 03: Parallel LightGBM -->
+		<div class="stage-cell" class:is-active={activeStage === 'inference'}>
 			<div class="stage-header-row">
 				<span class="stage-num font-mono">03</span>
 				<div class="stage-title-group">
-					<h3 class="stage-title">Model inference</h3>
-					<span class="stage-sub">Parallel GBDT regressors</span>
+					<h3 class="stage-title">Predict power</h3>
+					<span class="stage-sub">Parallel LightGBM models</span>
 				</div>
 				<button class="stage-btn font-mono" onclick={() => toggleStage('inference')}>
 					{activeStage === 'inference' ? 'Close' : 'Inspect'}
 				</button>
 			</div>
 
-			<div class="stage-body font-mono">
+			<div class="stage-body">
 				<div class="stat-line">
-					<span class="stat-label">Latency</span>
-					<span class="stat-val highlight">{latencyMs.toFixed(1)} ms</span>
+					<span class="stat-label">Inference speed</span>
+					<span class="stat-val highlight font-mono">{latencyMs.toFixed(1)} ms</span>
 				</div>
 				<div class="stat-line">
-					<span class="stat-label">Peaks</span>
-					<span class="stat-val">{peakPvKw.toFixed(0)} kW / {peakLoadKw.toFixed(0)} kW</span>
+					<span class="stat-label">Raw peaks</span>
+					<span class="stat-val font-mono">{peakPvKw.toFixed(0)} kW / {peakLoadKw.toFixed(0)} kW</span>
 				</div>
 			</div>
 
 			{#if activeStage === 'inference'}
-				<div class="stage-drawer font-mono">
-					<p><strong>Models:</strong> Dual LightGBM histogram regressors</p>
-					<p><strong>Speed:</strong> Evaluates all 24 horizons in parallel</p>
-					<p><strong>Output:</strong> Raw unconstrained day-ahead predictions</p>
+				<div class="stage-drawer">
+					{#if !showTechSpecs}
+						<div class="ste-box">
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">RULE</span>
+								<p>Run two specialized gradient-boosted models at the same time: one for Solar PV and one for Building Load.</p>
+							</div>
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">RULE</span>
+								<p>Predict all 24 future hours in one calculation. Do not loop step-by-step.</p>
+							</div>
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">PERFORMANCE</span>
+								<p>Inference executes in under 25 milliseconds on standard laptop CPUs.</p>
+							</div>
+						</div>
+					{:else}
+						<div class="spec-box font-mono">
+							<p><strong>Models:</strong> Dual <code>lightgbm.LGBMRegressor</code> (pv_model, load_model)</p>
+							<p><strong>Hyperparameters:</strong> 150 trees, max_depth=6, num_leaves=31, lr=0.05</p>
+							<p><strong>Validation SLA:</strong> PV daylight nMAE &le; 0.26%, Load nMAE &le; 2.99%</p>
+							<p><strong>Output:</strong> Unconstrained 24-step raw numerical predictions</p>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>
 
-		<!-- Stage 4 -->
-		<div class="stage-cell">
+		<!-- Stage 04: Physical Limits -->
+		<div class="stage-cell" class:is-active={activeStage === 'guard'}>
 			<div class="stage-header-row">
 				<span class="stage-num font-mono">04</span>
 				<div class="stage-title-group">
-					<h3 class="stage-title">Physical guard</h3>
-					<span class="stage-sub">Hardware & night bounds</span>
+					<h3 class="stage-title">Enforce physical limits</h3>
+					<span class="stage-sub">Inverter ceiling & night bounds</span>
 				</div>
 				<button class="stage-btn font-mono" onclick={() => toggleStage('guard')}>
 					{activeStage === 'guard' ? 'Close' : 'Inspect'}
 				</button>
 			</div>
 
-			<div class="stage-body font-mono">
+			<div class="stage-body">
 				<div class="stat-line">
-					<span class="stat-label">Night zeroing</span>
-					<span class="stat-badge">0.0 kW (GHI ≤ 0)</span>
+					<span class="stat-label">Night rule</span>
+					<span class="stat-badge font-mono">0.0 kW (GHI ≤ 0)</span>
 				</div>
 				<div class="stat-line">
 					<span class="stat-label">Inverter cap</span>
-					<span class="stat-val">50.0 kW</span>
+					<span class="stat-val font-mono">50.0 kW maximum</span>
 				</div>
 			</div>
 
 			{#if activeStage === 'guard'}
-				<div class="stage-drawer font-mono">
-					<p><strong>Input:</strong> Raw predictions and forecast irradiance</p>
-					<p><strong>Logic:</strong> Strict zeroing when sun is down; inverter ceiling</p>
-					<p><strong>Output:</strong> Physically compliant power envelope</p>
+				<div class="stage-drawer">
+					{#if !showTechSpecs}
+						<div class="ste-box">
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">PHYSICS 1</span>
+								<p>Set solar generation strictly to 0.0 kW when the sun is down (solar irradiance &le; 0).</p>
+							</div>
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">PHYSICS 2</span>
+								<p>Limit solar generation to 50.0 kW. Solar panels cannot produce more power than the inverter rating.</p>
+							</div>
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">PHYSICS 3</span>
+								<p>Keep facility power demand between 10.0 kW (baseload) and 45.0 kW (peak).</p>
+							</div>
+						</div>
+					{:else}
+						<div class="spec-box font-mono">
+							<p><strong>Boundary Code:</strong> <code>ml_service/postprocessing/boundary_enforcer.py</code></p>
+							<p><strong>Solar Clipping:</strong> <code>clip(P̂_pv, 0.0, 50.0) · 1(GHI &gt; 0)</code></p>
+							<p><strong>Load Clipping:</strong> <code>clip(P̂_load, 0.0, 1.2 · 45.0 kW)</code></p>
+							<p><strong>Output:</strong> Safe, physically realizable dispatch boundary</p>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>
 
-		<!-- Stage 5 -->
-		<div class="stage-cell">
+		<!-- Stage 05: Battery Storage Dispatch -->
+		<div class="stage-cell" class:is-active={activeStage === 'dispatch'}>
 			<div class="stage-header-row">
 				<span class="stage-num font-mono">05</span>
 				<div class="stage-title-group">
-					<h3 class="stage-title">Battery dispatch</h3>
-					<span class="stage-sub">Economic arbitrage</span>
+					<h3 class="stage-title">Schedule battery</h3>
+					<span class="stage-sub">Solar storage & cost reduction</span>
 				</div>
 				<button class="stage-btn font-mono" onclick={() => toggleStage('dispatch')}>
 					{activeStage === 'dispatch' ? 'Close' : 'Inspect'}
@@ -219,26 +426,45 @@
 				<div class="energy-fill load-fill" style="width: {100 - solarCoveragePct}%;"></div>
 			</div>
 
-			<div class="stage-body font-mono">
+			<div class="stage-body">
 				<div class="stat-line">
-					<span class="stat-label">24h Net</span>
-					<span class="stat-val" class:surplus={netBalanceKwh >= 0} class:deficit={netBalanceKwh < 0}>
+					<span class="stat-label">24h Net energy</span>
+					<span class="stat-val font-mono" class:surplus={netBalanceKwh >= 0} class:deficit={netBalanceKwh < 0}>
 						{netBalanceKwh >= 0 ? '+' : ''}{netBalanceKwh.toFixed(1)} kWh
 					</span>
 				</div>
 				<div class="stat-line">
-					<span class="stat-label">Action</span>
+					<span class="stat-label">Battery action</span>
 					<span class="stat-badge" class:surplus-badge={netBalanceKwh >= 0} class:deficit-badge={netBalanceKwh < 0}>
-						{netBalanceKwh >= 0 ? 'Charge storage' : 'Discharge storage'}
+						{netBalanceKwh >= 0 ? 'Charge battery' : 'Discharge battery'}
 					</span>
 				</div>
 			</div>
 
 			{#if activeStage === 'dispatch'}
-				<div class="stage-drawer font-mono">
-					<p><strong>Solar:</strong> {totalPvKwh.toFixed(1)} kWh ({solarCoveragePct}% coverage)</p>
-					<p><strong>Load:</strong> {totalLoadKwh.toFixed(1)} kWh demand</p>
-					<p><strong>Target:</strong> Optimizes BESS charge/discharge schedule</p>
+				<div class="stage-drawer">
+					{#if !showTechSpecs}
+						<div class="ste-box">
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">FORMULA</span>
+								<p><strong>Net Power</strong> = Solar Power minus Building Load.</p>
+							</div>
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">SURPLUS</span>
+								<p>When solar power exceeds building load (Net &gt; 0), charge excess energy into the battery.</p>
+							</div>
+							<div class="ste-rule">
+								<span class="rule-tag font-mono">DEFICIT</span>
+								<p>When building load exceeds solar power (Net &lt; 0), discharge the battery to avoid buying expensive grid electricity.</p>
+							</div>
+						</div>
+					{:else}
+						<div class="spec-box font-mono">
+							<p><strong>Total Solar:</strong> {totalPvKwh.toFixed(1)} kWh ({solarCoveragePct}% load coverage)</p>
+							<p><strong>Total Demand:</strong> {totalLoadKwh.toFixed(1)} kWh facility consumption</p>
+							<p><strong>Optimization Target:</strong> Mixed-Integer Linear Program (MILP) cost arbitrage</p>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>
@@ -260,7 +486,7 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-end;
-		padding: 1.75rem 2rem 1.5rem;
+		padding: 1.75rem 2rem 1.4rem;
 		border-bottom: 1px solid var(--hairline);
 		flex-wrap: wrap;
 		gap: 1rem 1.5rem;
@@ -289,6 +515,28 @@
 		font-size: 0.74rem;
 	}
 
+	.mode-toggle-btn {
+		background: var(--surface-sunken);
+		border: 1px solid var(--hairline-strong);
+		color: var(--text-secondary);
+		padding: 0.35rem 0.75rem;
+		border-radius: 999px;
+		font-size: 0.72rem;
+		cursor: pointer;
+		transition: all 0.25s var(--ease);
+	}
+
+	.mode-toggle-btn:hover {
+		color: var(--text-primary);
+		background: var(--surface-soft);
+	}
+
+	.mode-toggle-btn.active {
+		background: rgba(2, 132, 199, 0.15);
+		color: var(--color-load-ink);
+		border-color: rgba(2, 132, 199, 0.4);
+	}
+
 	.source-tag {
 		display: inline-flex;
 		align-items: center;
@@ -313,6 +561,66 @@
 
 	.latency-tag {
 		color: var(--text-muted);
+	}
+
+	/* Dataflow ribbon connecting the 5 stages */
+	.dataflow-ribbon {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.65rem 1.5rem;
+		background: rgba(18, 16, 14, 0.5);
+		border-bottom: 1px solid var(--hairline);
+		overflow-x: auto;
+		gap: 0.5rem;
+	}
+
+	.flow-node {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		background: transparent;
+		border: none;
+		color: var(--text-muted);
+		font-size: 0.72rem;
+		padding: 0.25rem 0.5rem;
+		border-radius: 4px;
+		cursor: pointer;
+		white-space: nowrap;
+		transition: all 0.25s var(--ease);
+	}
+
+	.flow-node:hover {
+		color: var(--text-primary);
+	}
+
+	.flow-node.active {
+		color: var(--text-primary);
+		background: var(--surface-sunken);
+		font-weight: 500;
+	}
+
+	.node-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: var(--text-muted);
+		transition: background-color 0.25s ease;
+	}
+
+	.flow-node.active .node-dot {
+		background: var(--color-pv);
+		box-shadow: 0 0 8px var(--color-pv);
+	}
+
+	.flow-node.highlight-node .node-dot {
+		background: var(--color-load);
+	}
+
+	.flow-arrow {
+		color: var(--hairline-strong);
+		font-size: 0.8rem;
+		user-select: none;
 	}
 
 	.stages-container {
@@ -343,13 +651,18 @@
 		flex-direction: column;
 		gap: 1.1rem;
 		min-width: 0;
+		background: transparent;
+		transition: background-color 0.3s ease;
+	}
+
+	.stage-cell.is-active {
+		background: rgba(255, 255, 255, 0.015);
 	}
 
 	.stage-cell:last-child {
 		border-right: none;
 	}
 
-	/* Number + title on row one, inspect pill beneath the title */
 	.stage-header-row {
 		display: grid;
 		grid-template-columns: auto minmax(0, 1fr);
@@ -402,10 +715,8 @@
 		font-size: 0.72rem;
 		font-weight: 500;
 		box-shadow: inset 0 0 0 1px var(--hairline-strong);
-		transition:
-			background-color 0.4s var(--ease),
-			color 0.4s var(--ease),
-			transform 0.5s var(--ease);
+		cursor: pointer;
+		transition: all 0.3s var(--ease);
 	}
 
 	.stage-btn:hover {
@@ -413,14 +724,9 @@
 		color: var(--text-primary);
 	}
 
-	.stage-btn:active {
-		transform: scale(0.97);
-	}
-
 	.stage-body {
 		display: flex;
 		flex-direction: column;
-		font-family: var(--font-sans);
 		font-size: 0.76rem;
 	}
 
@@ -438,11 +744,14 @@
 	}
 
 	.stat-val {
-		font-family: var(--font-mono);
 		color: var(--text-primary);
 		font-weight: 500;
 		font-size: 0.74rem;
 		text-align: right;
+	}
+
+	.stat-val.highlight {
+		color: var(--color-pv-ink);
 	}
 
 	.stat-val.surplus {
@@ -461,6 +770,11 @@
 		background: var(--surface-sunken);
 		color: var(--text-secondary);
 		text-align: right;
+	}
+
+	.stat-badge.lag-badge {
+		background: rgba(2, 132, 199, 0.12);
+		color: var(--color-load-ink);
 	}
 
 	.stat-badge.healed {
@@ -499,27 +813,176 @@
 		background: var(--color-load);
 	}
 
+	/* Drawers */
 	.stage-drawer {
 		background: var(--surface-soft);
 		box-shadow: inset 0 0 0 1px var(--hairline);
 		border-radius: var(--radius-inner);
-		padding: 0.8rem 0.9rem;
-		font-family: var(--font-sans);
+		padding: 0.9rem;
 		font-size: 0.74rem;
 		display: flex;
 		flex-direction: column;
-		gap: 0.45rem;
+		gap: 0.75rem;
 		color: var(--text-secondary);
 	}
 
-	.stage-drawer p {
-		margin: 0;
-		line-height: 1.5;
+	/* STE-100 Rule Box */
+	.ste-box {
+		display: flex;
+		flex-direction: column;
+		gap: 0.55rem;
 	}
 
-	.stage-drawer strong {
-		color: var(--text-primary);
+	.ste-rule {
+		display: flex;
+		flex-direction: column;
+		gap: 0.18rem;
+	}
+
+	.rule-tag {
+		font-size: 0.62rem;
 		font-weight: 600;
+		color: var(--text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.ste-rule p {
+		margin: 0;
+		line-height: 1.45;
+		color: var(--text-primary);
+	}
+
+	.spec-box {
+		display: flex;
+		flex-direction: column;
+		gap: 0.45rem;
+		font-size: 0.72rem;
+	}
+
+	.spec-box p {
+		margin: 0;
+		line-height: 1.45;
+	}
+
+	.spec-box code {
+		color: var(--color-pv-ink);
+		background: var(--surface-sunken);
+		padding: 0.1rem 0.35rem;
+		border-radius: 3px;
+	}
+
+	/* Lag Visual Map Graphic */
+	.lag-visual-map {
+		background: var(--surface-sunken);
+		border: 1px solid var(--hairline);
+		border-radius: 6px;
+		padding: 0.75rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+	}
+
+	.lag-map-header {
+		font-size: 0.65rem;
+		font-weight: 600;
+		color: var(--color-load-ink);
+		letter-spacing: 0.06em;
+	}
+
+	.lag-timeline-graphic {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+	}
+
+	.timeline-block {
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+	}
+
+	.block-label {
+		font-size: 0.6rem;
+		color: var(--text-muted);
+		letter-spacing: 0.04em;
+	}
+
+	.lag-chips {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 0.4rem;
+	}
+
+	.lag-chip {
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid var(--hairline-strong);
+		border-radius: 4px;
+		padding: 0.35rem 0.5rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+	}
+
+	.lag-chip.origin-chip {
+		border-color: rgba(2, 132, 199, 0.4);
+		background: rgba(2, 132, 199, 0.1);
+	}
+
+	.chip-time {
+		font-size: 0.7rem;
+		font-weight: 600;
+		color: var(--text-primary);
+	}
+
+	.chip-desc {
+		font-size: 0.62rem;
+		color: var(--text-muted);
+	}
+
+	.timeline-divider {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.2rem 0;
+	}
+
+	.lock-icon {
+		font-size: 0.65rem;
+		font-weight: 600;
+		color: #eab308;
+		background: rgba(234, 179, 8, 0.1);
+		border: 1px solid rgba(234, 179, 8, 0.3);
+		padding: 0.15rem 0.5rem;
+		border-radius: 999px;
+		white-space: nowrap;
+	}
+
+	.divider-line {
+		flex: 1;
+		height: 1px;
+		background: dashed 1px var(--hairline-strong);
+	}
+
+	.horizon-chips {
+		display: flex;
+		gap: 0.35rem;
+		flex-wrap: wrap;
+	}
+
+	.horizon-chip {
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid var(--hairline);
+		padding: 0.2rem 0.45rem;
+		border-radius: 3px;
+		font-size: 0.66rem;
+		color: var(--text-secondary);
+	}
+
+	.future-note {
+		font-size: 0.62rem;
+		color: var(--text-muted);
+		margin-top: 0.2rem;
 	}
 
 	@media (max-width: 760px) {
@@ -529,6 +992,10 @@
 
 		.pipeline-title {
 			font-size: 1.55rem;
+		}
+
+		.lag-chips {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>

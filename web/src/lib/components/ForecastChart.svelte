@@ -109,7 +109,7 @@
 	<div class="chart-header">
 		<div>
 			<h2 class="chart-title">24-hour power dispatch trajectory</h2>
-			<p class="chart-subtitle">Discrete lookahead with 50 kW PV inverter limit, 45 kW load capacity, and battery arbitrage</p>
+			<p class="chart-subtitle">24-hour power forecast. Inverter limit is 50.0 kW. Building peak demand is 45.0 kW.</p>
 		</div>
 
 		<div class="chart-actions">
@@ -154,65 +154,92 @@
 					<span class="guide-dot pv-dot"></span>
 					Solar PV (Amber)
 				</span>
-				<p>Predicted photovoltaic output. Strictly zeroed when solar irradiance is zero (night) and clipped to the 50 kW inverter ceiling.</p>
+				<p>Predicted solar generation. Set to 0.0 kW when the sun is down (night). Clipped to the 50.0 kW inverter ceiling.</p>
 			</div>
 			<div class="guide-item">
 				<span class="guide-label load-label">
 					<span class="guide-dot load-dot"></span>
-					Load demand (Sky blue)
+					Building load (Sky blue)
 				</span>
-				<p>Facility power consumption conditioned on historical sensor telemetry, weekday rhythm, and ambient temperature.</p>
+				<p>Predicted electrical demand. Conditioned on past sensor readings, weekday schedule, and weather forecast.</p>
 			</div>
 			<div class="guide-item">
 				<span class="guide-label net-label">
 					<span class="guide-dot surplus-dot"></span>
 					<span class="guide-dot deficit-dot"></span>
-					Battery balance (Green / Red)
+					Battery schedule (Green / Red)
 				</span>
-				<p>Surplus generation (Green) charges battery storage. Deficit demand (Red) triggers economic battery discharge or grid import.</p>
+				<p>Net Power = Solar minus Load. Green surplus charges the battery. Red deficit discharges the battery to avoid peak grid rates.</p>
 			</div>
 		</div>
 	{/if}
 
-	<!-- Telemetry Inspector Bar -->
+	<!-- Telemetry Inspector Bar & Power-Flow Diagram -->
 	<div class="telemetry-bar font-mono">
 		{#if hoveredIndex !== null && timestamps[hoveredIndex]}
 			{@const hGhi = weather[hoveredIndex]?.ghi ?? 0}
 			{@const hTemp = weather[hoveredIndex]?.temp_amb ?? 0}
 			{@const hCloud = weather[hoveredIndex]?.cloud_cover ?? 0}
-			<div class="telemetry-stat">
-				<span class="stat-name">Horizon:</span>
-				<span class="stat-val highlight">T+{hoveredIndex + 1} ({formatTime(timestamps[hoveredIndex])})</span>
+			{@const curPv = pvForecast[hoveredIndex] || 0}
+			{@const curLoad = loadForecast[hoveredIndex] || 0}
+
+			<div class="inspector-summary">
+				<div class="telemetry-stat">
+					<span class="stat-name">Horizon:</span>
+					<span class="stat-val highlight">T+{hoveredIndex + 1} ({formatTime(timestamps[hoveredIndex])})</span>
+				</div>
+				<div class="telemetry-stat weather-stat">
+					<span class="stat-name">Weather:</span>
+					<span class="stat-val muted">{hGhi.toFixed(0)} W/m² • {hTemp.toFixed(1)}°C • {hCloud.toFixed(0)}% cloud</span>
+				</div>
 			</div>
-			<div class="telemetry-stat">
-				<span class="stat-name">Solar:</span>
-				<span class="stat-val pv-val">{pvForecast[hoveredIndex]?.toFixed(1)} kW</span>
-			</div>
-			<div class="telemetry-stat">
-				<span class="stat-name">Load:</span>
-				<span class="stat-val load-val">{loadForecast[hoveredIndex]?.toFixed(1)} kW</span>
-			</div>
-			<div class="telemetry-stat">
-				<span class="stat-name">Net:</span>
-				<span class="stat-val" class:surplus={hoveredNet >= 0} class:deficit={hoveredNet < 0}>
-					{hoveredNet >= 0 ? '+' : ''}{hoveredNet.toFixed(1)} kW
-					<span class="net-pill" class:surplus-pill={hoveredNet >= 0} class:deficit-pill={hoveredNet < 0}>
-						{hoveredNet >= 0 ? 'Charging storage' : 'Discharging storage'}
-					</span>
-				</span>
-			</div>
-			<div class="telemetry-stat weather-stat">
-				<span class="stat-name">Weather:</span>
-				<span class="stat-val muted">{hGhi.toFixed(0)} W/m², {hTemp.toFixed(1)}°C, {hCloud.toFixed(0)}% cloud</span>
+
+			<!-- Live Microgrid Power Flow Schematic -->
+			<div class="microgrid-flow font-mono" title="Instantaneous microgrid power flow at this hour">
+				<div class="flow-asset pv-asset">
+					<span class="asset-symbol">☀️</span>
+					<div class="asset-data">
+						<span class="asset-val">{curPv.toFixed(1)} kW</span>
+						<span class="asset-lbl">Solar PV</span>
+					</div>
+				</div>
+
+				<div class="flow-wire">→</div>
+
+				<div class="flow-bus">
+					<span class="bus-badge">⚡ AC BUS</span>
+				</div>
+
+				<div class="flow-wire">→</div>
+
+				<div class="flow-asset load-asset">
+					<span class="asset-symbol">🏢</span>
+					<div class="asset-data">
+						<span class="asset-val">{curLoad.toFixed(1)} kW</span>
+						<span class="asset-lbl">Building</span>
+					</div>
+				</div>
+
+				<div class="flow-wire flow-vert" class:is-surplus={hoveredNet >= 0} class:is-deficit={hoveredNet < 0}>
+					<span>{hoveredNet >= 0 ? '↓ Charge' : '↑ Discharge'}</span>
+				</div>
+
+				<div class="flow-asset batt-asset" class:charging={hoveredNet >= 0} class:discharging={hoveredNet < 0}>
+					<span class="asset-symbol">🔋</span>
+					<div class="asset-data">
+						<span class="asset-val">{Math.abs(hoveredNet).toFixed(1)} kW</span>
+						<span class="asset-lbl">{hoveredNet >= 0 ? 'Store extra' : 'Supply load'}</span>
+					</div>
+				</div>
 			</div>
 		{:else}
 			<div class="telemetry-idle">
-				<span>Hover or scrub along the timeline to inspect hourly generation, load demand, and battery storage balance</span>
+				<span>Hover or scrub along the chart to inspect live microgrid power routing between Solar, Building, and Battery</span>
 				<div class="chart-legend font-mono">
 					<span class="legend-item"><span class="legend-pip pv-pip"></span>Solar PV</span>
 					<span class="legend-item"><span class="legend-pip load-pip"></span>Building load</span>
-					<span class="legend-item"><span class="legend-pip surplus-pip"></span>Surplus (Charging)</span>
-					<span class="legend-item"><span class="legend-pip deficit-pip"></span>Deficit (Discharging)</span>
+					<span class="legend-item"><span class="legend-pip surplus-pip"></span>Surplus (Charge)</span>
+					<span class="legend-item"><span class="legend-pip deficit-pip"></span>Deficit (Discharge)</span>
 				</div>
 			</div>
 		{/if}
@@ -676,33 +703,125 @@
 		color: var(--color-load-ink);
 	}
 
-	.stat-val.surplus {
+	/* Microgrid Flow Widget */
+	.inspector-summary {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		min-width: 170px;
+	}
+
+	.microgrid-flow {
+		display: flex;
+		align-items: center;
+		gap: 0.55rem;
+		background: var(--surface-sunken);
+		border: 1px solid var(--hairline);
+		padding: 0.35rem 0.75rem;
+		border-radius: var(--radius-inner);
+		flex-wrap: wrap;
+	}
+
+	.flow-asset {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid var(--hairline-strong);
+		padding: 0.22rem 0.55rem;
+		border-radius: 4px;
+	}
+
+	.pv-asset {
+		border-color: rgba(232, 137, 12, 0.35);
+	}
+
+	.pv-asset .asset-val {
+		color: var(--color-pv-ink);
+	}
+
+	.load-asset {
+		border-color: rgba(45, 132, 214, 0.35);
+	}
+
+	.load-asset .asset-val {
+		color: var(--color-load-ink);
+	}
+
+	.batt-asset.charging {
+		border-color: rgba(18, 160, 113, 0.35);
+		background: rgba(18, 160, 113, 0.08);
+	}
+
+	.batt-asset.charging .asset-val {
 		color: var(--color-surplus-ink);
 	}
 
-	.stat-val.deficit {
+	.batt-asset.discharging {
+		border-color: rgba(224, 54, 95, 0.35);
+		background: rgba(224, 54, 95, 0.08);
+	}
+
+	.batt-asset.discharging .asset-val {
 		color: var(--color-deficit-ink);
 	}
 
-	.net-pill {
-		display: inline-flex;
-		align-items: center;
-		padding: 0.15rem 0.6rem;
-		border-radius: 999px;
-		font-family: var(--font-sans);
-		font-size: 0.68rem;
-		font-weight: 500;
-		margin-left: 0.5rem;
+	.asset-symbol {
+		font-size: 0.85rem;
 	}
 
-	.surplus-pill {
+	.asset-data {
+		display: flex;
+		flex-direction: column;
+		gap: 0.05rem;
+	}
+
+	.asset-val {
+		font-size: 0.74rem;
+		font-weight: 600;
+	}
+
+	.asset-lbl {
+		font-size: 0.6rem;
+		color: var(--text-muted);
+	}
+
+	.flow-wire {
+		color: var(--text-muted);
+		font-size: 0.75rem;
+		user-select: none;
+	}
+
+	.flow-wire.flow-vert {
+		padding: 0.12rem 0.45rem;
+		border-radius: 999px;
+		font-size: 0.66rem;
+		font-weight: 600;
+	}
+
+	.flow-wire.is-surplus {
 		background: var(--color-surplus-muted);
 		color: var(--color-surplus-ink);
 	}
 
-	.deficit-pill {
+	.flow-wire.is-deficit {
 		background: var(--color-deficit-muted);
 		color: var(--color-deficit-ink);
+	}
+
+	.flow-bus {
+		display: flex;
+		align-items: center;
+	}
+
+	.bus-badge {
+		font-size: 0.62rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		background: rgba(255, 255, 255, 0.06);
+		padding: 0.18rem 0.45rem;
+		border-radius: 3px;
+		letter-spacing: 0.05em;
 	}
 
 	.muted {

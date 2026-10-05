@@ -6,7 +6,7 @@
 
 	let { isOpen = false, onClose }: Props = $props();
 
-	type TabId = 'workflow' | 'inputs' | 'outputs' | 'glossary';
+	type TabId = 'workflow' | 'lags' | 'inputs' | 'glossary';
 	let activeTab = $state<TabId>('workflow');
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -33,36 +33,37 @@
 			<!-- Header -->
 			<div class="modal-header">
 				<div>
-					<h2 id="modal-title" class="modal-title">System architecture & specifications</h2>
-					<p class="modal-subtitle">Autonomous 24-hour microgrid forecasting and dispatch methodology</p>
+					<h2 id="modal-title" class="modal-title">System architecture & intuitive guide</h2>
+					<p class="modal-subtitle">Autonomous 24-hour microgrid forecasting and battery dispatch specifications</p>
 				</div>
 				<button class="close-btn" onclick={onClose} aria-label="Close guide">
 					✕
 				</button>
 			</div>
 
-			<!-- Tabs (Segmented, no misaligned borders) -->
+			<!-- Tabs -->
 			<div class="modal-tabs">
 				<button
 					class="tab-btn font-mono"
 					class:active={activeTab === 'workflow'}
 					onclick={() => (activeTab = 'workflow')}
-				>Pipeline workflow</button>
+				>Pipeline Workflow</button>
+				<button
+					class="tab-btn font-mono highlight-tab"
+					class:active={activeTab === 'lags'}
+					onclick={() => (activeTab = 'lags')}
+				>How Lags Work (ADR 0001)</button>
 				<button
 					class="tab-btn font-mono"
 					class:active={activeTab === 'inputs'}
 					onclick={() => (activeTab = 'inputs')}
-				>Required feeds</button>
-				<button
-					class="tab-btn font-mono"
-					class:active={activeTab === 'outputs'}
-					onclick={() => (activeTab = 'outputs')}
-				>Forecast envelopes</button>
+					>Feeds & Controls</button
+				>
 				<button
 					class="tab-btn font-mono"
 					class:active={activeTab === 'glossary'}
 					onclick={() => (activeTab = 'glossary')}
-				>Parameters & units</button>
+				>ASD-STE100 Glossary</button>
 			</div>
 
 			<!-- Body -->
@@ -70,49 +71,127 @@
 				{#if activeTab === 'workflow'}
 					<div class="tab-pane">
 						<div class="callout-box">
-							<h3>Architecture principle (ADR 0001)</h3>
-							<p>Origin-anchored horizon conditioning evaluates all 24 future hours simultaneously in under 25 milliseconds on standard CPU. This directly prevents autoregressive drift and compounding multi-step error accumulation.</p>
+							<span class="callout-tag font-mono">CORE ARCHITECTURAL PRINCIPLE (ADR 0001)</span>
+							<h3>Predict All 24 Hours in One Step</h3>
+							<p>Helios uses horizon conditioning instead of step-by-step recursion. The models predict all 24 future hours simultaneously in under 25 milliseconds. This eliminates compounding prediction errors.</p>
 						</div>
 
 						<div class="workflow-steps">
 							<div class="workflow-step">
 								<span class="step-num font-mono">01</span>
 								<div class="step-text">
-									<h4>Self-healing telemetry sanitizer</h4>
-									<p>Ingests the 48-hour historical lookback buffer. Telemetry dropouts up to 3 hours caused by packet loss are automatically healed via linear interpolation and nocturnal zero-filling.</p>
+									<h4>Clean sensor data (Sanitizer)</h4>
+									<p>Collect 48 hours of rolling sensor logs. Automatically fill missing values for gaps of 3 hours or less. If a gap exceeds 3 hours, stop and signal an alarm.</p>
 								</div>
 							</div>
 
 							<div class="workflow-step">
 								<span class="step-num font-mono">02</span>
 								<div class="step-text">
-									<h4>Frozen origin anchor & forward weather</h4>
-									<p>Observed history is frozen strictly at origin moment T to guarantee zero future data leakage. Combines upcoming 24-hour numerical weather predictions with calendar encodings.</p>
+									<h4>Lock origin and feature lags</h4>
+									<p>Lock all sensor measurements at time T. The model cannot read future data. Combine past measurements with 24-hour weather predictions.</p>
 								</div>
 							</div>
 
 							<div class="workflow-step">
 								<span class="step-num font-mono">03</span>
 								<div class="step-text">
-									<h4>Parallel LightGBM regressor inference</h4>
-									<p>Two specialized gradient-boosted decision tree models infer simultaneously: one for solar PV generation and one for facility electrical demand.</p>
+									<h4>Infer power with dual LightGBM</h4>
+									<p>Run two specialized gradient-boosted models in parallel: one for Solar PV and one for Building Load. Predict all 24 hours at once.</p>
 								</div>
 							</div>
 
 							<div class="workflow-step">
 								<span class="step-num font-mono">04</span>
 								<div class="step-text">
-									<h4>Deterministic physical guardrails</h4>
-									<p>Physics enforcement guarantees hard 0.0 kW nocturnal solar output when GHI ≤ 0, enforces inverter clipping at 50.0 kW, and binds load demand to [10..45 kW].</p>
+									<h4>Enforce physical limits</h4>
+									<p>Set solar power to 0.0 kW when the sun is down. Clip solar generation to the 50.0 kW inverter ceiling. Bound facility load between 10.0 kW and 45.0 kW.</p>
 								</div>
 							</div>
 
 							<div class="workflow-step">
 								<span class="step-num font-mono">05</span>
 								<div class="step-text">
-									<h4>Battery storage economic arbitrage</h4>
-									<p>Calculates instantaneous net power (Solar − Load). Solar surplus charges the battery storage; load deficit triggers optimal battery discharge to minimize peak grid tariffs.</p>
+									<h4>Schedule battery storage</h4>
+									<p>Calculate Net Power = Solar minus Load. When solar power exceeds load, charge the battery. When load exceeds solar power, discharge the battery to reduce grid cost.</p>
 								</div>
+							</div>
+						</div>
+					</div>
+
+				{:else if activeTab === 'lags'}
+					<!-- SPECIFIC DEDICATED SECTION FOR HOW LAGS WORK -->
+					<div class="tab-pane">
+						<div class="callout-box lag-focus">
+							<span class="callout-tag font-mono">EXPLAINING TIME-SERIES LAGS</span>
+							<h3>What Is a Lag and Why Does It Matter?</h3>
+							<p>A <strong>lag</strong> is a sensor measurement from a specific time in the past. In electrical power systems, power consumption and solar production repeat in daily 24-hour cycles. Past measurements are the strongest predictor of tomorrow's energy.</p>
+						</div>
+
+						<!-- Visual Lag Diagram Card -->
+						<div class="lag-graphic-card font-mono">
+							<div class="graphic-title">THE ORIGIN FREEZE ARCHITECTURE (ADR 0001)</div>
+							
+							<div class="graphic-timeline">
+								<div class="timeline-zone past-zone">
+									<span class="zone-label">PAST SENSOR LOGS</span>
+									<div class="zone-pills">
+										<div class="zone-pill">
+											<strong>T - 24h</strong>
+											<span>Yesterday's power at this exact hour (Daily Baseline)</span>
+										</div>
+										<div class="zone-pill">
+											<strong>T - 6h..T</strong>
+											<span>Rolling 6-hour power mean (Recent energy trend)</span>
+										</div>
+										<div class="zone-pill">
+											<strong>T - 1h</strong>
+											<span>Power 1 hour ago (Immediate momentum ramp)</span>
+										</div>
+										<div class="zone-pill origin-pill-graphic">
+											<strong>Time T</strong>
+											<span>Power right now (Anchor moment)</span>
+										</div>
+									</div>
+								</div>
+
+								<div class="timeline-barrier">
+									<div class="barrier-line"></div>
+									<div class="barrier-badge">🔒 TIME T LOCK</div>
+									<div class="barrier-line"></div>
+								</div>
+
+								<div class="timeline-zone future-zone">
+									<span class="zone-label">FUTURE FORECAST HORIZON</span>
+									<div class="horizon-preview">
+										<div class="h-step">T+1h</div>
+										<div class="h-step">T+2h</div>
+										<div class="h-step">...</div>
+										<div class="h-step">T+24h</div>
+									</div>
+									<p class="zone-desc">The model evaluates all 24 horizons using the <em>exact same frozen lags</em> from time T plus forward weather forecasts.</p>
+								</div>
+							</div>
+						</div>
+
+						<!-- Two Approaches Comparison -->
+						<div class="comparison-grid">
+							<div class="comp-box bad-box">
+								<h4 class="comp-title font-mono">❌ Naive Recursive Method (Why it fails)</h4>
+								<ul class="comp-list">
+									<li>To predict hour 2, it feeds its own prediction from hour 1 back in as a "lag".</li>
+									<li>To predict hour 24, small errors multiply 24 times.</li>
+									<li>Causes huge prediction drift and unstable energy dispatch.</li>
+								</ul>
+							</div>
+
+							<div class="comp-box good-box">
+								<h4 class="comp-title font-mono">✓ Helios Origin-Conditioned Method (Our system)</h4>
+								<ul class="comp-list">
+									<li>Locks all historical lags strictly at origin moment T.</li>
+									<li>Conditions directly on the horizon index (step h from 1 to 24).</li>
+									<li>Zero error multiplication. Zero data leakage. 25 ms inference.</li>
+								</ul>
 							</div>
 						</div>
 					</div>
@@ -121,76 +200,38 @@
 					<div class="tab-pane">
 						<div class="split-columns">
 							<div class="col-panel">
-								<h3>Operator controls</h3>
+								<h3>Operator Controls</h3>
 								<div class="feed-list">
 									<div class="feed-item">
-										<strong>Forecast origin (T)</strong>
-										<p>The temporal anchor moment. Historical context spans [T-48h..T]; predictions project [T+1h..T+24h].</p>
+										<strong>Forecast origin (Time T)</strong>
+										<p>The anchor hour. Historical sensor data spans [T-48h to T]. Predictions project [T+1h to T+24h].</p>
 									</div>
 									<div class="feed-item">
-										<strong>Scenario presets</strong>
-										<p>Seasonal weather archetypes (Summer peak, Winter evening, Spring ramp, Storm front) to stress-test microgrid dynamics.</p>
+										<strong>Scenario profiles</strong>
+										<p>Pre-configured seasonal profiles (Summer peak, Winter evening, Spring ramp, Storm front) to test microgrid performance.</p>
 									</div>
 									<div class="feed-item">
-										<strong>Dropout simulator</strong>
-										<p>Injects synthetic sensor communication blackouts to test automated pipeline self-healing in real time.</p>
+										<strong>Sensor gap stress test</strong>
+										<p>Simulates lost communication signals to verify automated linear healing and supervisory alarm trips.</p>
 									</div>
 								</div>
 							</div>
 
 							<div class="col-panel">
-								<h3>Automated telemetry & weather</h3>
+								<h3>Automated Sensor & Weather Feeds</h3>
 								<div class="feed-list">
 									<div class="feed-item">
 										<strong>48-Hour sensor buffer</strong>
-										<p>Continuous rolling logs of panel output (kW), building demand (kW), outdoor temperature (°C), and irradiance (W/m²).</p>
+										<p>Continuous logs of solar panel output (kW), building power demand (kW), outdoor temperature (°C), and solar irradiance (W/m²).</p>
 									</div>
 									<div class="feed-item">
-										<strong>24-Hour NWP weather forecast</strong>
-										<p>Upcoming numerical predictions of solar irradiance (GHI), ambient temperature (°C), and cloud cover (%).</p>
+										<strong>24-Hour numerical weather forecast</strong>
+										<p>Forward numerical predictions of solar irradiance (GHI), ambient temperature (°C), and cloud cover (%).</p>
 									</div>
 									<div class="feed-item">
-										<strong>Cyclical calendar encodings</strong>
-										<p>Hour of day, day of week, and day of year to account for facility shifts and occupancy patterns.</p>
+										<strong>Calendar encodings</strong>
+										<p>Hour-of-day and day-of-year cyclical variables to capture facility work shifts and seasonal daylight changes.</p>
 									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-
-				{:else if activeTab === 'outputs'}
-					<div class="tab-pane">
-						<div class="output-stack">
-							<div class="output-card">
-								<span class="output-type font-mono">Stream 01</span>
-								<h3>Solar PV generation (P̂_pv)</h3>
-								<p>Predicted photovoltaic electrical output for each hour of the 24-hour horizon.</p>
-								<div class="output-meta font-mono">
-									<span>Unit: Kilowatts (kW)</span>
-									<span>Rating: 50.0 kW inverter ceiling</span>
-									<span>Physics: Strictly 0.0 kW nocturnal zeroing</span>
-								</div>
-							</div>
-
-							<div class="output-card">
-								<span class="output-type font-mono">Stream 02</span>
-								<h3>Facility load demand (P̂_load)</h3>
-								<p>Predicted building electrical power consumption across equipment, lighting, and HVAC systems.</p>
-								<div class="output-meta font-mono">
-									<span>Unit: Kilowatts (kW)</span>
-									<span>Capacity: 10.0 kW baseload to 45.0 kW peak</span>
-									<span>Rhythm: Workday morning ramp and evening domestic draw</span>
-								</div>
-							</div>
-
-							<div class="output-card">
-								<span class="output-type font-mono">Derived schedule</span>
-								<h3>Net power & battery schedule</h3>
-								<p>Real-time power balance: P̂_net = P̂_pv − P̂_load.</p>
-								<div class="output-meta font-mono">
-									<span>Surplus: Charges on-site battery storage</span>
-									<span>Deficit: Discharges battery or imports grid power</span>
-									<span>Energy: 24h integrated sum (kWh) for economic dispatch</span>
 								</div>
 							</div>
 						</div>
@@ -205,51 +246,57 @@
 										<th>Term</th>
 										<th>Unit</th>
 										<th>Category</th>
-										<th>Operational definition</th>
+										<th>Operational Definition & Rule</th>
 									</tr>
 								</thead>
 								<tbody>
 									<tr>
+										<td><strong>Lag</strong></td>
+										<td>Index</td>
+										<td>Feature</td>
+										<td>Sensor measurement from the past (e.g., T-1h, T-24h). Locked at origin T.</td>
+									</tr>
+									<tr>
+										<td><strong>Origin (Time T)</strong></td>
+										<td>Timestamp</td>
+										<td>Control</td>
+										<td>The forecast reference hour. Divides past observations from future predictions.</td>
+									</tr>
+									<tr>
 										<td><strong>kW (Kilowatt)</strong></td>
 										<td>Power</td>
-										<td>Metric</td>
-										<td>Instantaneous rate of electricity generated or consumed.</td>
+										<td>Rate</td>
+										<td>Instantaneous rate of electricity generated or consumed at a single moment.</td>
 									</tr>
 									<tr>
 										<td><strong>kWh (Kilowatt-hour)</strong></td>
 										<td>Energy</td>
-										<td>Metric</td>
-										<td>Total volume of electrical energy over time (1 kW for 1h = 1 kWh).</td>
+										<td>Volume</td>
+										<td>Accumulated volume of electricity over time (1 kW sustained for 1 hour = 1 kWh).</td>
 									</tr>
 									<tr>
 										<td><strong>Solar PV (P_pv)</strong></td>
 										<td>kW</td>
 										<td>Asset</td>
-										<td>Photovoltaic electrical output. Inverter ceiling: 50.0 kW.</td>
+										<td>Photovoltaic solar generation. Limited to 50.0 kW inverter cap; 0.0 kW at night.</td>
 									</tr>
 									<tr>
-										<td><strong>Load demand (P_load)</strong></td>
+										<td><strong>Building Load (P_load)</strong></td>
 										<td>kW</td>
 										<td>Asset</td>
-										<td>Facility electrical consumption. Baseload: 10.0 kW; Peak: 45.0 kW.</td>
+										<td>Facility electricity consumption. Baseline: 10.0 kW; Peak capacity: 45.0 kW.</td>
 									</tr>
 									<tr>
-										<td><strong>GHI irradiance</strong></td>
+										<td><strong>GHI (Solar Irradiance)</strong></td>
 										<td>W/m²</td>
 										<td>Weather</td>
-										<td>Global Horizontal Irradiance: solar intensity per square meter.</td>
+										<td>Global Horizontal Irradiance: solar power per square meter. 0.0 W/m² at night.</td>
 									</tr>
 									<tr>
-										<td><strong>Ambient temperature</strong></td>
-										<td>°C</td>
-										<td>Weather</td>
-										<td>Outdoor air temperature influencing cooling and panel efficiency.</td>
-									</tr>
-									<tr>
-										<td><strong>nMAE accuracy</strong></td>
+										<td><strong>nMAE Error</strong></td>
 										<td>%</td>
-										<td>SLA Quality</td>
-										<td>Normalized Mean Absolute Error relative to capacity. PV: 0.26%, Load: 2.99%.</td>
+										<td>Accuracy</td>
+										<td>Capacity-Normalized Mean Absolute Error. PV error: 0.26%; Load error: 2.99%.</td>
 									</tr>
 								</tbody>
 							</table>
@@ -270,12 +317,8 @@
 
 <style>
 	@keyframes fade-in {
-		from {
-			opacity: 0;
-		}
-		to {
-			opacity: 1;
-		}
+		from { opacity: 0; }
+		to { opacity: 1; }
 	}
 
 	@keyframes pop-in {
@@ -308,7 +351,7 @@
 		border-radius: 28px;
 		width: 100%;
 		max-width: 860px;
-		max-height: 85dvh;
+		max-height: 88dvh;
 		display: flex;
 		flex-direction: column;
 		box-shadow:
@@ -329,7 +372,7 @@
 	.modal-title {
 		margin: 0;
 		font-family: var(--font-display);
-		font-size: 1.9rem;
+		font-size: 1.85rem;
 		font-weight: 400;
 		line-height: 1.1;
 		letter-spacing: -0.015em;
@@ -349,62 +392,37 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		background: var(--surface-sunken);
-		color: var(--text-secondary);
 		border-radius: 50%;
-		font-size: 0.8rem;
-		transition:
-			background-color 0.4s var(--ease),
-			color 0.4s var(--ease),
-			transform 0.5s var(--ease);
+		background: var(--surface-sunken);
+		border: 1px solid var(--hairline-strong);
+		color: var(--text-secondary);
+		cursor: pointer;
+		transition: all 0.25s var(--ease);
 	}
 
 	.close-btn:hover {
-		background: var(--surface-hover);
 		color: var(--text-primary);
+		background: var(--surface-soft);
 	}
 
-	.close-btn:active {
-		transform: scale(0.94);
-	}
-
-	/* Segmented tab track */
 	.modal-tabs {
 		display: flex;
-		align-items: center;
-		gap: 2px;
-		width: fit-content;
-		max-width: calc(100% - 4rem);
-		margin: 0 2rem;
-		padding: 3px;
-		background: var(--surface-sunken);
-		border-radius: 999px;
+		gap: 4px;
+		padding: 0 2rem 1rem;
+		border-bottom: 1px solid var(--hairline);
 		overflow-x: auto;
-		scrollbar-width: none;
-	}
-
-	.modal-tabs::-webkit-scrollbar {
-		display: none;
 	}
 
 	.tab-btn {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		height: 34px;
-		padding: 0 1rem;
 		background: transparent;
-		color: var(--text-secondary);
-		font-family: var(--font-sans);
-		font-size: 0.78rem;
-		font-weight: 500;
-		line-height: 1;
-		white-space: nowrap;
+		border: none;
+		color: var(--text-muted);
+		padding: 0.45rem 0.9rem;
 		border-radius: 999px;
-		transition:
-			background-color 0.4s var(--ease),
-			color 0.4s var(--ease),
-			box-shadow 0.4s var(--ease);
+		font-size: 0.76rem;
+		cursor: pointer;
+		white-space: nowrap;
+		transition: all 0.25s var(--ease);
 	}
 
 	.tab-btn:hover {
@@ -412,15 +430,18 @@
 	}
 
 	.tab-btn.active {
-		background: var(--surface);
+		background: var(--surface-sunken);
 		color: var(--text-primary);
-		box-shadow:
-			0 0 0 1px var(--hairline),
-			0 2px 6px -2px rgba(23, 21, 15, 0.16);
+		font-weight: 600;
+	}
+
+	.tab-btn.highlight-tab.active {
+		background: rgba(2, 132, 199, 0.15);
+		color: var(--color-load-ink);
 	}
 
 	.modal-body {
-		padding: 1.5rem 2rem 1.75rem;
+		padding: 1.75rem 2rem;
 		overflow-y: auto;
 		flex: 1;
 	}
@@ -428,202 +449,329 @@
 	.tab-pane {
 		display: flex;
 		flex-direction: column;
-		gap: 1.25rem;
+		gap: 1.5rem;
 	}
 
 	.callout-box {
-		background: var(--color-pv-muted);
-		border-radius: 18px;
-		padding: 1.25rem 1.5rem;
+		background: var(--surface-soft);
+		border: 1px solid var(--hairline);
+		border-radius: var(--radius-inner);
+		padding: 1.25rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.callout-box.lag-focus {
+		border-color: rgba(2, 132, 199, 0.3);
+		background: rgba(2, 132, 199, 0.04);
+	}
+
+	.callout-tag {
+		font-size: 0.65rem;
+		color: var(--color-pv-ink);
+		letter-spacing: 0.08em;
+	}
+
+	.lag-focus .callout-tag {
+		color: var(--color-load-ink);
 	}
 
 	.callout-box h3 {
-		margin: 0 0 0.4rem;
-		font-size: 0.92rem;
-		font-weight: 600;
+		margin: 0;
+		font-size: 1.05rem;
 		color: var(--text-primary);
 	}
 
 	.callout-box p {
 		margin: 0;
 		font-size: 0.82rem;
+		line-height: 1.55;
 		color: var(--text-secondary);
-		line-height: 1.6;
 	}
 
-	.workflow-steps,
-	.output-stack {
+	.workflow-steps {
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
-	}
-
-	.workflow-step,
-	.col-panel,
-	.output-card {
-		background: var(--surface-soft);
-		box-shadow: inset 0 0 0 1px var(--hairline);
-		border-radius: 18px;
+		gap: 1rem;
 	}
 
 	.workflow-step {
 		display: flex;
 		gap: 1rem;
 		align-items: flex-start;
-		padding: 1.1rem 1.35rem;
+		background: var(--surface-sunken);
+		padding: 1rem 1.25rem;
+		border-radius: var(--radius-inner);
+		border: 1px solid var(--hairline);
 	}
 
 	.step-num {
-		flex-shrink: 0;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 28px;
-		height: 28px;
-		border-radius: 50%;
-		background: var(--surface);
-		box-shadow: inset 0 0 0 1px var(--hairline-strong);
-		font-size: 0.66rem;
-		font-weight: 500;
-		color: var(--text-secondary);
+		font-size: 0.72rem;
+		font-weight: 700;
+		color: var(--color-pv-ink);
+		background: rgba(232, 137, 12, 0.1);
+		padding: 0.25rem 0.55rem;
+		border-radius: 6px;
+	}
+
+	.step-text {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
 	}
 
 	.step-text h4 {
-		margin: 0.2rem 0 0.3rem;
+		margin: 0;
 		font-size: 0.9rem;
-		font-weight: 600;
-		letter-spacing: -0.01em;
 		color: var(--text-primary);
 	}
 
 	.step-text p {
 		margin: 0;
-		font-size: 0.8rem;
+		font-size: 0.78rem;
+		line-height: 1.5;
 		color: var(--text-secondary);
-		line-height: 1.55;
 	}
 
+	/* Lag Graphic Card */
+	.lag-graphic-card {
+		background: var(--surface-sunken);
+		border: 1px solid var(--hairline-strong);
+		border-radius: var(--radius-inner);
+		padding: 1.25rem;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	.graphic-title {
+		font-size: 0.7rem;
+		font-weight: 700;
+		color: var(--color-load-ink);
+		letter-spacing: 0.08em;
+	}
+
+	.graphic-timeline {
+		display: grid;
+		grid-template-columns: 1fr auto 1fr;
+		gap: 1rem;
+		align-items: center;
+	}
+
+	.timeline-zone {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+	}
+
+	.zone-label {
+		font-size: 0.65rem;
+		color: var(--text-muted);
+		letter-spacing: 0.05em;
+	}
+
+	.zone-pills {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+
+	.zone-pill {
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid var(--hairline);
+		padding: 0.4rem 0.6rem;
+		border-radius: 4px;
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		font-size: 0.68rem;
+	}
+
+	.zone-pill strong {
+		color: var(--text-primary);
+	}
+
+	.zone-pill span {
+		font-size: 0.62rem;
+		color: var(--text-muted);
+	}
+
+	.origin-pill-graphic {
+		border-color: rgba(2, 132, 199, 0.4);
+		background: rgba(2, 132, 199, 0.1);
+	}
+
+	.origin-pill-graphic strong {
+		color: var(--color-load-ink);
+	}
+
+	.timeline-barrier {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.barrier-line {
+		width: 1px;
+		height: 40px;
+		background: var(--hairline-strong);
+	}
+
+	.barrier-badge {
+		font-size: 0.65rem;
+		font-weight: 700;
+		color: #eab308;
+		background: rgba(234, 179, 8, 0.1);
+		border: 1px solid rgba(234, 179, 8, 0.3);
+		padding: 0.3rem 0.6rem;
+		border-radius: 999px;
+		white-space: nowrap;
+	}
+
+	.horizon-preview {
+		display: flex;
+		gap: 0.4rem;
+		flex-wrap: wrap;
+	}
+
+	.h-step {
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid var(--hairline);
+		padding: 0.25rem 0.5rem;
+		border-radius: 4px;
+		font-size: 0.68rem;
+		color: var(--text-secondary);
+	}
+
+	.zone-desc {
+		font-size: 0.72rem;
+		color: var(--text-secondary);
+		line-height: 1.45;
+		margin: 0;
+	}
+
+	/* Comparison Grid */
+	.comparison-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+	}
+
+	.comp-box {
+		padding: 1rem;
+		border-radius: var(--radius-inner);
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.bad-box {
+		background: rgba(224, 54, 95, 0.04);
+		border: 1px solid rgba(224, 54, 95, 0.2);
+	}
+
+	.bad-box .comp-title {
+		color: var(--color-deficit-ink);
+	}
+
+	.good-box {
+		background: rgba(18, 160, 113, 0.04);
+		border: 1px solid rgba(18, 160, 113, 0.2);
+	}
+
+	.good-box .comp-title {
+		color: var(--color-surplus-ink);
+	}
+
+	.comp-title {
+		margin: 0;
+		font-size: 0.8rem;
+	}
+
+	.comp-list {
+		margin: 0;
+		padding-left: 1.2rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+		font-size: 0.74rem;
+		color: var(--text-secondary);
+		line-height: 1.4;
+	}
+
+	/* Split Columns in Inputs tab */
 	.split-columns {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-		gap: 1.25rem;
+		grid-template-columns: 1fr 1fr;
+		gap: 1.5rem;
 	}
 
 	.col-panel {
-		padding: 1.4rem 1.5rem;
 		display: flex;
 		flex-direction: column;
-		gap: 1.1rem;
+		gap: 1rem;
 	}
 
 	.col-panel h3 {
 		margin: 0;
 		font-size: 0.95rem;
-		font-weight: 600;
-		letter-spacing: -0.01em;
 		color: var(--text-primary);
 	}
 
 	.feed-list {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 0.85rem;
+	}
+
+	.feed-item {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		font-size: 0.78rem;
 	}
 
 	.feed-item strong {
-		font-size: 0.82rem;
-		font-weight: 600;
 		color: var(--text-primary);
-		display: block;
-		margin-bottom: 0.2rem;
 	}
 
 	.feed-item p {
 		margin: 0;
-		font-size: 0.78rem;
 		color: var(--text-secondary);
-		line-height: 1.55;
+		line-height: 1.45;
 	}
 
-	.output-card {
-		padding: 1.35rem 1.5rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.output-type {
-		font-family: var(--font-sans);
-		font-size: 0.66rem;
-		font-weight: 500;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-		color: var(--text-muted);
-	}
-
-	.output-card h3 {
-		margin: 0;
-		font-size: 0.95rem;
-		font-weight: 600;
-		letter-spacing: -0.01em;
-		color: var(--text-primary);
-	}
-
-	.output-card p {
-		margin: 0;
-		font-size: 0.82rem;
-		color: var(--text-secondary);
-		line-height: 1.55;
-	}
-
-	.output-meta {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem 1.25rem;
-		margin-top: 0.35rem;
-		font-size: 0.72rem;
-		color: var(--text-muted);
-	}
-
+	/* Glossary Table */
 	.table-container {
 		border-radius: var(--radius-inner);
 		box-shadow: inset 0 0 0 1px var(--hairline);
-		overflow-y: auto;
-		max-height: 360px;
+		overflow-x: auto;
 	}
 
 	.glossary-table {
 		width: 100%;
 		border-collapse: collapse;
-		font-family: var(--font-sans);
-		font-size: 0.8rem;
+		font-size: 0.76rem;
 		text-align: left;
 	}
 
 	.glossary-table th {
 		background: var(--surface-soft);
 		color: var(--text-muted);
-		padding: 0.8rem 1rem;
-		font-size: 0.66rem;
-		font-weight: 500;
-		letter-spacing: 0.1em;
+		padding: 0.75rem 1rem;
+		font-size: 0.65rem;
+		font-weight: 600;
 		text-transform: uppercase;
+		letter-spacing: 0.08em;
 		border-bottom: 1px solid var(--hairline);
-		position: sticky;
-		top: 0;
 	}
 
 	.glossary-table td {
-		padding: 0.8rem 1rem;
+		padding: 0.7rem 1rem;
 		border-bottom: 1px solid var(--hairline);
 		color: var(--text-secondary);
-		line-height: 1.5;
-		vertical-align: top;
-	}
-
-	.glossary-table td strong {
-		color: var(--text-primary);
-		font-weight: 600;
 	}
 
 	.glossary-table tr:last-child td {
@@ -631,50 +779,43 @@
 	}
 
 	.modal-footer {
-		padding: 1rem 2rem 1.5rem;
+		padding: 1.25rem 2rem;
+		border-top: 1px solid var(--hairline);
 		display: flex;
 		justify-content: flex-end;
-		border-top: 1px solid var(--hairline);
 	}
 
 	.return-btn {
-		background: var(--cta-bg);
-		color: var(--cta-fg);
+		background: var(--surface-sunken);
+		border: 1px solid var(--hairline-strong);
+		color: var(--text-primary);
+		padding: 0.5rem 1.25rem;
 		border-radius: 999px;
-		padding: 0.65rem 1.5rem;
-		font-size: 0.82rem;
-		font-weight: 600;
-		transition:
-			background-color 0.4s var(--ease),
-			transform 0.5s var(--ease);
+		font-size: 0.78rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.25s var(--ease);
 	}
 
 	.return-btn:hover {
-		background: var(--cta-hover);
-	}
-
-	.return-btn:active {
-		transform: scale(0.98);
+		background: var(--surface-soft);
 	}
 
 	@media (max-width: 760px) {
-		.modal-backdrop {
-			padding: 0.75rem;
+		.graphic-timeline,
+		.comparison-grid,
+		.split-columns {
+			grid-template-columns: 1fr;
+		}
+
+		.modal-window {
+			max-height: 94dvh;
 		}
 
 		.modal-header,
 		.modal-body,
 		.modal-footer {
 			padding-inline: 1.25rem;
-		}
-
-		.modal-tabs {
-			margin-inline: 1.25rem;
-			max-width: calc(100% - 2.5rem);
-		}
-
-		.modal-title {
-			font-size: 1.55rem;
 		}
 	}
 </style>

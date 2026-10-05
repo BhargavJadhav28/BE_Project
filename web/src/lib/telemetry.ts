@@ -4,35 +4,35 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
 	{
 		id: 'summer-peak',
 		name: 'Summer Solar Peak',
-		description: 'Clear sunny summer day with 40+ kW midday solar generation and high afternoon cooling load.',
+		description: 'Sunny summer day. Solar generation exceeds 40 kW at noon. Afternoon cooling increases building demand.',
 		origin: '2026-06-15T12:00:00',
 		season: 'summer'
 	},
 	{
 		id: 'spring-ramp',
 		name: 'Spring Dynamic Dispatch',
-		description: 'Mild spring morning with rapidly rising solar irradiance and industrial commercial startup ramp.',
+		description: 'Mild spring morning. Solar power rises quickly while commercial building equipment turns on.',
 		origin: '2026-03-20T08:00:00',
 		season: 'spring'
 	},
 	{
 		id: 'winter-night',
 		name: 'Winter Evening Peak',
-		description: 'Chilly winter evening with 0 kW nocturnal solar generation and peak residential heating demand.',
+		description: 'Cold winter evening. Solar generation is 0.0 kW while heating creates peak power demand.',
 		origin: '2026-12-18T18:00:00',
 		season: 'winter'
 	},
 	{
 		id: 'cloud-storm',
 		name: 'Storm Front Intermittency',
-		description: 'Passing storm front with sudden 80% cloud cover dropouts and erratic irradiance spikes.',
+		description: 'Passing storm front. Rapid cloud cover changes cause sudden drops in solar generation.',
 		origin: '2026-09-10T11:00:00',
 		season: 'autumn'
 	},
 	{
 		id: 'self-healing-gap',
 		name: 'Self-Healing Gap Test (2h Drop)',
-		description: 'Simulates a 2-hour sensor packet loss. Verifies linear gap interpolation and nocturnal zero-fill.',
+		description: 'Simulates a 2-hour sensor signal loss. The pipeline fills missing values automatically.',
 		origin: '2026-05-14T14:00:00',
 		season: 'spring',
 		hasGap: true,

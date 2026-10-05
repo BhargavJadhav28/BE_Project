@@ -176,7 +176,7 @@
 				24-hour solar generation, building load forecasting & <em>battery dispatch</em>
 			</h1>
 			<p class="hero-description">
-				Conditioned machine learning pipeline providing synchronous day-ahead power predictions and physical boundary enforcement for economic storage optimization.
+				Helios predicts solar generation and building electrical demand for the next 24 hours. The pipeline enforces physical inverter limits and schedules battery storage to reduce electricity costs.
 			</p>
 		</header>
 
@@ -186,21 +186,21 @@
 				<div class="kpi-box">
 					<div class="kpi-label-row">
 						<span class="kpi-pip pv-pip"></span>
-						<span class="kpi-label">Solar PV forecast (24h)</span>
+						<span class="kpi-label">Solar PV generation (24h)</span>
 					</div>
 					<div class="kpi-metric-row font-mono">
 						<span class="kpi-val">{totalPvKwh.toFixed(1)}</span>
 						<span class="kpi-unit">kWh</span>
 					</div>
 					<div class="kpi-subtext font-mono">
-						Peak: <strong class="text-amber">{peakPvKw.toFixed(1)} kW</strong> • Daylight: <strong>{daylightHoursCount}h</strong>
+						Peak: <strong class="text-amber">{peakPvKw.toFixed(1)} kW</strong> • Inverter cap: 50 kW • Daylight: <strong>{daylightHoursCount}h</strong>
 					</div>
 				</div>
 
 				<div class="kpi-box">
 					<div class="kpi-label-row">
 						<span class="kpi-pip load-pip"></span>
-						<span class="kpi-label">Building load demand (24h)</span>
+						<span class="kpi-label">Building power demand (24h)</span>
 					</div>
 					<div class="kpi-metric-row font-mono">
 						<span class="kpi-val">{totalLoadKwh.toFixed(1)}</span>
@@ -214,7 +214,7 @@
 				<div class="kpi-box">
 					<div class="kpi-label-row">
 						<span class="kpi-pip" class:surplus-pip={netBalanceKwh >= 0} class:deficit-pip={netBalanceKwh < 0}></span>
-						<span class="kpi-label">Net battery storage balance</span>
+						<span class="kpi-label">Battery energy schedule (24h)</span>
 					</div>
 					<div class="kpi-metric-row font-mono">
 						<span class="kpi-val" class:text-emerald={netBalanceKwh >= 0} class:text-rose={netBalanceKwh < 0}>
@@ -224,21 +224,21 @@
 					</div>
 					<div class="kpi-subtext font-mono">
 						<span class="kpi-badge" class:surplus-badge={netBalanceKwh >= 0} class:deficit-badge={netBalanceKwh < 0}>
-							{netBalanceKwh >= 0 ? 'Surplus solar charging' : 'Deficit storage dispatch'}
+							{netBalanceKwh >= 0 ? 'Surplus: charge battery' : 'Deficit: discharge battery'}
 						</span>
 					</div>
 				</div>
 
 				<div class="kpi-box">
 					<div class="kpi-label-row">
-						<span class="kpi-label">Inference latency & SLA</span>
+						<span class="kpi-label">Model speed & accuracy</span>
 					</div>
 					<div class="kpi-metric-row font-mono">
 						<span class="kpi-val">{forecastResult.metadata.execution_time_ms.toFixed(1)}</span>
 						<span class="kpi-unit">ms</span>
 					</div>
 					<div class="kpi-subtext font-mono">
-						PV nMAE: <strong>0.26%</strong> • Load nMAE: <strong>2.99%</strong>
+						PV error: <strong>0.26% nMAE</strong> • Load error: <strong>2.99% nMAE</strong>
 					</div>
 				</div>
 			</section>
@@ -248,7 +248,7 @@
 		{#if pipelineError}
 			<div class="error-banner font-mono">
 				<div class="error-content">
-					<span class="error-badge">SUPERVISORY FAULT</span>
+					<span class="error-badge">SUPERVISORY ALARM</span>
 					<span class="error-message">{pipelineError}</span>
 				</div>
 				<button class="error-dismiss-btn" onclick={() => (pipelineError = null)}>✕</button>
@@ -260,7 +260,7 @@
 			<div class="controls-row">
 				<!-- Origin Time Picker -->
 				<div class="control-group">
-					<label for="origin-picker" class="control-label">Forecast origin</label>
+					<label for="origin-picker" class="control-label">Forecast origin (Time T)</label>
 					<div class="input-and-nudges">
 						<input
 							id="origin-picker"
@@ -269,6 +269,7 @@
 							class="origin-field font-mono"
 							bind:value={customOrigin}
 							onchange={() => runPipeline()}
+							title="Past sensor data locks at time T. Predict next 24 hours."
 						/>
 						<div class="nudge-group font-mono">
 							<button class="nudge-btn" onclick={() => adjustOriginHours(-1)} title="Step 1 hour back">
@@ -286,7 +287,7 @@
 
 				<!-- Dropout Simulator -->
 				<div class="control-group">
-					<span class="control-label">Telemetry sanitizer stress test</span>
+					<span class="control-label">Sensor gap stress test</span>
 					<div class="dropout-selector font-mono">
 						<button
 							class="dropout-btn"
@@ -295,6 +296,7 @@
 								injectGap = false;
 								runPipeline();
 							}}
+							title="Continuous data stream without sensor drops"
 						>
 							Continuous
 						</button>
@@ -306,6 +308,7 @@
 								gapHours = 2;
 								runPipeline();
 							}}
+							title="Gap ≤ 3 hours: The pipeline heals missing data automatically"
 						>
 							2h (Heal)
 						</button>
@@ -317,8 +320,9 @@
 								gapHours = 4;
 								runPipeline();
 							}}
+							title="Gap > 3 hours: The pipeline stops and trips supervisory alarm"
 						>
-							4h (Trip)
+							4h (Trip alarm)
 						</button>
 					</div>
 				</div>
@@ -335,7 +339,7 @@
 							<span class="loading-spinner"></span>
 							<span>Running...</span>
 						{:else}
-							<span>Run forecast</span>
+							<span>Run 24h forecast</span>
 							<span class="btn-icon" aria-hidden="true">
 								<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 11.5l7-7M5.5 4.5h6v6" /></svg>
 							</span>
@@ -346,7 +350,7 @@
 
 			<!-- Scenarios Filter Row -->
 			<div class="scenarios-row">
-				<span class="scenarios-label">Scenario profiles:</span>
+				<span class="scenarios-label">Operational scenarios:</span>
 				<div class="scenario-buttons font-mono">
 					{#each SCENARIO_PRESETS as preset}
 						<button
@@ -356,7 +360,7 @@
 						>
 							<span>{preset.name}</span>
 							{#if preset.hasGap}
-								<span class="badge-mini font-mono">Dropout</span>
+								<span class="badge-mini font-mono">2h Gap</span>
 							{/if}
 						</button>
 					{/each}
