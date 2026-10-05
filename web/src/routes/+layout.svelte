@@ -17,45 +17,76 @@
 
 <style>
 	:global(:root) {
-		/* Deep pitch-black substrate with sleek functional accents */
-		--bg-base: #000000;
-		--bg-surface: #09090C;
-		--bg-surface-elevated: #121217;
-		--bg-surface-subtle: #050507;
-		--bg-hover: #181820;
+		color-scheme: dark;
 
-		/* Razor-sharp borders */
-		--border-subtle: #1C1C24;
-		--border-medium: #2C2C38;
-		--border-strong: #444454;
+		/* Warm graphite canvas, paper-white text, one sun-amber accent */
+		--bg-base: #0f0e0c;
+		--surface: #171512;
+		--surface-soft: #1d1b17;
+		--surface-sunken: #110f0d;
+		--surface-hover: #26231e;
+		--thumb: #2b2823;
 
-		/* Clean functional accents (restrained, zero neon glow) */
-		--color-pv: #F59E0B;            /* Crisp Solar Amber */
-		--color-pv-muted: rgba(245, 158, 11, 0.12);
-		
-		--color-load: #38BDF8;          /* Ice Blue */
-		--color-load-muted: rgba(56, 189, 248, 0.12);
+		/* Hairlines are translucent warm white so they adapt to any surface */
+		--hairline: rgba(255, 244, 225, 0.08);
+		--hairline-strong: rgba(255, 244, 225, 0.16);
 
-		--color-surplus: #10B981;       /* Emerald Green (Net +ve) */
-		--color-surplus-muted: rgba(16, 185, 129, 0.14);
-		--color-deficit: #F43F5E;       /* Rose Red (Net -ve) */
-		--color-deficit-muted: rgba(244, 63, 94, 0.14);
-		--color-warn: #F59E0B;
+		/* Graphic colors (lines, fills, dots) and readable text variants */
+		--color-pv: #f5a524;
+		--color-pv-ink: #f7b84b;
+		--color-pv-muted: rgba(245, 165, 36, 0.14);
 
-		/* High-contrast typography */
-		--text-primary: #FFFFFF;
-		--text-secondary: #A1A1AA;
-		--text-muted: #71717A;
-		--text-faint: #3F3F46;
+		--color-load: #4da3f0;
+		--color-load-ink: #7dbdf5;
+		--color-load-muted: rgba(77, 163, 240, 0.14);
 
-		--font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-		--font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+		--color-surplus: #2fd39b;
+		--color-surplus-ink: #5be0b3;
+		--color-surplus-muted: rgba(47, 211, 155, 0.14);
 
-		--ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+		--color-deficit: #ff5c82;
+		--color-deficit-ink: #ff8aa3;
+		--color-deficit-muted: rgba(255, 92, 130, 0.14);
+
+		--text-primary: #f4efe6;
+		--text-secondary: #b5aea2;
+		--text-muted: #8d867a;
+		--text-faint: #4e4940;
+
+		/* Primary call-to-action: inverted paper pill */
+		--cta-bg: #f4efe6;
+		--cta-fg: #14120e;
+		--cta-hover: #ffffff;
+
+		--font-sans: 'Hanken Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+		--font-mono: 'Spline Sans Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+		--font-display: 'Familjen Grotesk', 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
+
+		/* Concentric radii: shell = core + bezel */
+		--radius-core: 22px;
+		--radius-inner: 14px;
+
+		/*
+		 * "Double bezel": the card itself is the inner core; spread shadows draw the
+		 * outer shell tray and its hairline, followed by a deep ambient lift.
+		 */
+		--bezel:
+			inset 0 1px 0 rgba(255, 244, 225, 0.05),
+			0 0 0 1px rgba(255, 244, 225, 0.07),
+			0 0 0 7px rgba(255, 244, 225, 0.03),
+			0 0 0 8px rgba(255, 244, 225, 0.055),
+			0 30px 48px -22px rgba(0, 0, 0, 0.75);
+
+		--ease: cubic-bezier(0.32, 0.72, 0, 1);
 	}
 
 	:global(*) {
 		box-sizing: border-box;
+	}
+
+	:global(html) {
+		background: var(--bg-base);
+		scroll-behavior: smooth;
 	}
 
 	:global(body) {
@@ -64,10 +95,22 @@
 		background-color: var(--bg-base);
 		color: var(--text-primary);
 		font-family: var(--font-sans);
+		font-variant-numeric: tabular-nums;
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
-		min-height: 100vh;
+		min-height: 100dvh;
 		overflow-x: hidden;
+	}
+
+	:global(::selection) {
+		background: rgba(245, 165, 36, 0.35);
+		color: #ffffff;
+	}
+
+	/* Data readouts: numbers, timestamps, units */
+	:global(.font-mono) {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
 	}
 
 	:global(button) {
@@ -75,43 +118,74 @@
 		cursor: pointer;
 		user-select: none;
 		border: none;
-		outline: none;
 		background: none;
 		box-sizing: border-box;
 		line-height: inherit;
+		color: inherit;
+	}
+
+	:global(button:focus-visible),
+	:global(input:focus-visible) {
+		outline: 2px solid rgba(244, 239, 230, 0.85);
+		outline-offset: 2px;
+	}
+
+	:global(button:disabled) {
+		cursor: not-allowed;
 	}
 
 	.app-viewport {
-		min-height: 100vh;
+		min-height: 100dvh;
 		width: 100%;
 		display: flex;
 		flex-direction: column;
-		background-color: var(--bg-base);
+		/* A faint low-sun glow at the top of the page */
+		background:
+			radial-gradient(1100px 460px at 50% -10%, rgba(245, 165, 36, 0.12), transparent 70%),
+			var(--bg-base);
 	}
 
 	.app-container {
 		width: 100%;
-		min-height: 100vh;
+		min-height: 100dvh;
 		display: flex;
 		flex-direction: column;
 	}
 
-	/* Minimal scrollbar */
+	/* Quiet scrollbar */
 	:global(::-webkit-scrollbar) {
-		width: 5px;
-		height: 5px;
+		width: 8px;
+		height: 8px;
 	}
 
 	:global(::-webkit-scrollbar-track) {
-		background: #000000;
+		background: transparent;
 	}
 
 	:global(::-webkit-scrollbar-thumb) {
-		background: #27272A;
-		border-radius: 2px;
+		background: rgba(255, 244, 225, 0.16);
+		border-radius: 999px;
+		border: 2px solid transparent;
+		background-clip: padding-box;
 	}
 
 	:global(::-webkit-scrollbar-thumb:hover) {
-		background: #3F3F46;
+		background: rgba(255, 244, 225, 0.28);
+		background-clip: padding-box;
+		border: 2px solid transparent;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		:global(html) {
+			scroll-behavior: auto;
+		}
+
+		:global(*),
+		:global(*::before),
+		:global(*::after) {
+			animation-duration: 0.01ms !important;
+			animation-delay: 0ms !important;
+			transition-duration: 0.01ms !important;
+		}
 	}
 </style>

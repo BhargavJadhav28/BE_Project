@@ -232,14 +232,14 @@
 			<defs>
 				<!-- Solar Amber Area Fade -->
 				<linearGradient id="pvFillAmber" x1="0" y1="0" x2="0" y2="1">
-					<stop offset="0%" stop-color="#F59E0B" stop-opacity="0.14" />
-					<stop offset="100%" stop-color="#F59E0B" stop-opacity="0.0" />
+					<stop offset="0%" stop-color="#E8890C" stop-opacity="0.22" />
+					<stop offset="100%" stop-color="#E8890C" stop-opacity="0.0" />
 				</linearGradient>
 
 				<!-- Sky Blue Area Fade -->
 				<linearGradient id="loadFillSky" x1="0" y1="0" x2="0" y2="1">
-					<stop offset="0%" stop-color="#38BDF8" stop-opacity="0.10" />
-					<stop offset="100%" stop-color="#38BDF8" stop-opacity="0.0" />
+					<stop offset="0%" stop-color="#2D84D6" stop-opacity="0.14" />
+					<stop offset="100%" stop-color="#2D84D6" stop-opacity="0.0" />
 				</linearGradient>
 
 				<!-- Chart Area Clip to Prevent Edge Bleed -->
@@ -259,8 +259,8 @@
 							y={padTop}
 							width={w}
 							height={chartH}
-							fill="#000000"
-							opacity="0.5"
+							fill="#17150F"
+							opacity="0.05"
 						/>
 					{/if}
 				{/each}
@@ -332,7 +332,7 @@
 				<path
 					d={pvPath}
 					fill="none"
-					stroke="#F59E0B"
+					stroke="#E8890C"
 					stroke-width="2.2"
 					stroke-linecap="round"
 					stroke-linejoin="round"
@@ -344,7 +344,7 @@
 				<path
 					d={loadPath}
 					fill="none"
-					stroke="#38BDF8"
+					stroke="#2D84D6"
 					stroke-width="1.8"
 					stroke-linecap="round"
 					stroke-linejoin="round"
@@ -365,7 +365,7 @@
 							width={w}
 							height={4}
 							rx={2}
-							fill={isSurplus ? '#10B981' : '#F43F5E'}
+							fill={isSurplus ? '#12A071' : '#E0365F'}
 							opacity={hoveredIndex === i ? 1 : 0.65}
 						/>
 					{/each}
@@ -385,7 +385,7 @@
 					y1={Math.min(curPvY, curLoadY)}
 					x2={curX}
 					y2={Math.max(curPvY, curLoadY)}
-					stroke={isSurplus ? '#10B981' : '#F43F5E'}
+					stroke={isSurplus ? '#12A071' : '#E0365F'}
 					stroke-width="2.5"
 					stroke-linecap="round"
 					opacity="0.9"
@@ -468,9 +468,9 @@
 
 <style>
 	.chart-panel {
-		background: #09090C;
-		border: 1px solid #1C1C24;
-		border-radius: 8px;
+		background: var(--surface);
+		border-radius: var(--radius-core);
+		box-shadow: var(--bezel);
 		overflow: hidden;
 		display: flex;
 		flex-direction: column;
@@ -480,95 +480,108 @@
 	.chart-header {
 		display: flex;
 		justify-content: space-between;
-		align-items: center;
-		padding: 1.25rem 1.5rem;
-		border-bottom: 1px solid #1C1C24;
+		align-items: flex-end;
+		padding: 1.75rem 2rem 1.5rem;
 		flex-wrap: wrap;
-		gap: 1rem;
-		background: #09090C;
+		gap: 1rem 1.5rem;
 	}
 
 	.chart-title {
 		margin: 0;
-		font-size: 1.05rem;
-		font-weight: 600;
-		color: #FFFFFF;
-		letter-spacing: -0.01em;
+		font-family: var(--font-display);
+		font-size: 1.85rem;
+		font-weight: 400;
+		line-height: 1.1;
+		letter-spacing: -0.015em;
+		color: var(--text-primary);
 	}
 
 	.chart-subtitle {
-		margin: 0.2rem 0 0;
-		font-size: 0.8rem;
-		color: #71717A;
+		margin: 0.45rem 0 0;
+		font-size: 0.85rem;
+		color: var(--text-muted);
+		max-width: 56ch;
+		line-height: 1.5;
 	}
 
 	.chart-actions {
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
+		flex-wrap: wrap;
 	}
 
 	.mode-selector {
-		display: flex;
-		background: #050507;
-		border: 1px solid #1C1C24;
-		border-radius: 6px;
-		padding: 2px;
+		display: inline-flex;
+		background: var(--surface-sunken);
+		border-radius: 999px;
+		padding: 3px;
 		gap: 2px;
 	}
 
 	.mode-btn {
+		font-family: var(--font-sans);
 		background: transparent;
-		color: #71717A;
-		padding: 0.35rem 0.75rem;
-		font-size: 0.75rem;
+		color: var(--text-secondary);
+		padding: 0.45rem 0.95rem;
+		font-size: 0.78rem;
 		font-weight: 500;
-		border-radius: 4px;
-		cursor: pointer;
-		transition: all 0.15s ease;
+		border-radius: 999px;
+		transition:
+			background-color 0.4s var(--ease),
+			color 0.4s var(--ease),
+			box-shadow 0.4s var(--ease);
 	}
 
 	.mode-btn:hover {
-		color: #FFFFFF;
+		color: var(--text-primary);
 	}
 
 	.mode-btn.active {
-		background: #1C1C24;
-		color: #FFFFFF;
+		background: var(--surface);
+		color: var(--text-primary);
+		box-shadow:
+			0 0 0 1px var(--hairline),
+			0 2px 6px -2px rgba(23, 21, 15, 0.16);
 	}
 
 	.guide-btn {
-		background: #141418;
-		border: 1px solid #27272A;
-		color: #A1A1AA;
-		padding: 0.35rem 0.85rem;
-		font-size: 0.75rem;
+		font-family: var(--font-sans);
+		color: var(--text-secondary);
+		padding: 0.5rem 1rem;
+		font-size: 0.78rem;
 		font-weight: 500;
-		border-radius: 6px;
-		cursor: pointer;
-		transition: all 0.15s ease;
+		border-radius: 999px;
+		box-shadow: inset 0 0 0 1px var(--hairline-strong);
+		transition:
+			background-color 0.4s var(--ease),
+			color 0.4s var(--ease),
+			transform 0.5s var(--ease);
 	}
 
 	.guide-btn:hover,
 	.guide-btn.active {
-		border-color: #3F3F46;
-		color: #FFFFFF;
-		background: #1C1C24;
+		color: var(--text-primary);
+		background: var(--surface-sunken);
+	}
+
+	.guide-btn:active {
+		transform: scale(0.98);
 	}
 
 	.guide-panel {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-		gap: 1.25rem;
-		padding: 1.25rem 1.5rem;
-		background: #050507;
-		border-bottom: 1px solid #1C1C24;
+		gap: 1.5rem;
+		padding: 1.5rem 2rem;
+		background: var(--surface-soft);
+		border-block: 1px solid var(--hairline);
 	}
 
 	.guide-item {
 		display: flex;
 		flex-direction: column;
-		gap: 0.35rem;
+		gap: 0.4rem;
 	}
 
 	.guide-label {
@@ -576,7 +589,7 @@
 		font-weight: 600;
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: 0.45rem;
 	}
 
 	.guide-dot {
@@ -586,113 +599,114 @@
 	}
 
 	.pv-dot {
-		background: #F59E0B;
+		background: var(--color-pv);
 	}
 
 	.load-dot {
-		background: #38BDF8;
+		background: var(--color-load);
 	}
 
 	.surplus-dot {
-		background: #10B981;
+		background: var(--color-surplus);
 	}
 
 	.deficit-dot {
-		background: #F43F5E;
+		background: var(--color-deficit);
 	}
 
 	.guide-item p {
 		margin: 0;
-		font-size: 0.75rem;
-		color: #A1A1AA;
-		line-height: 1.45;
+		font-size: 0.78rem;
+		color: var(--text-secondary);
+		line-height: 1.55;
 	}
 
 	.pv-label {
-		color: #F59E0B;
+		color: var(--color-pv-ink);
 	}
 
 	.load-label {
-		color: #38BDF8;
+		color: var(--color-load-ink);
 	}
 
 	.net-label {
-		color: #FFFFFF;
+		color: var(--text-primary);
 	}
 
-	/* Telemetry Bar */
+	/* Telemetry inspector strip */
 	.telemetry-bar {
-		padding: 0.75rem 1.5rem;
-		background: #050507;
-		border-bottom: 1px solid #1C1C24;
+		padding: 0.85rem 2rem;
+		background: var(--surface-soft);
+		border-block: 1px solid var(--hairline);
 		display: flex;
 		align-items: center;
-		gap: 1.75rem;
-		font-size: 0.775rem;
+		gap: 0.75rem 2rem;
+		font-family: var(--font-sans);
+		font-size: 0.78rem;
 		flex-wrap: wrap;
-		min-height: 44px;
+		min-height: 52px;
+	}
+
+	.guide-panel + .telemetry-bar {
+		border-top: none;
 	}
 
 	.telemetry-stat {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: 0.5rem;
 	}
 
 	.stat-name {
-		color: #71717A;
-		font-size: 0.725rem;
+		color: var(--text-muted);
+		font-size: 0.74rem;
 	}
 
 	.stat-val {
-		font-weight: 600;
-		color: #FFFFFF;
-	}
-
-	.stat-val.highlight {
-		color: #FFFFFF;
+		font-family: var(--font-mono);
+		font-weight: 500;
+		color: var(--text-primary);
 	}
 
 	.pv-val {
-		color: #F59E0B;
+		color: var(--color-pv-ink);
 	}
 
 	.load-val {
-		color: #38BDF8;
+		color: var(--color-load-ink);
 	}
 
 	.stat-val.surplus {
-		color: #10B981;
+		color: var(--color-surplus-ink);
 	}
 
 	.stat-val.deficit {
-		color: #F43F5E;
+		color: var(--color-deficit-ink);
 	}
 
 	.net-pill {
 		display: inline-flex;
 		align-items: center;
-		padding: 0.12rem 0.45rem;
-		border-radius: 4px;
+		padding: 0.15rem 0.6rem;
+		border-radius: 999px;
+		font-family: var(--font-sans);
 		font-size: 0.68rem;
 		font-weight: 500;
-		margin-left: 0.35rem;
+		margin-left: 0.5rem;
 	}
 
 	.surplus-pill {
-		background: rgba(16, 185, 129, 0.14);
-		color: #10B981;
-		border: 1px solid rgba(16, 185, 129, 0.28);
+		background: var(--color-surplus-muted);
+		color: var(--color-surplus-ink);
 	}
 
 	.deficit-pill {
-		background: rgba(244, 63, 94, 0.14);
-		color: #F43F5E;
-		border: 1px solid rgba(244, 63, 94, 0.28);
+		background: var(--color-deficit-muted);
+		color: var(--color-deficit-ink);
 	}
 
 	.muted {
-		color: #71717A;
+		color: var(--text-muted);
 	}
 
 	.telemetry-idle {
@@ -700,54 +714,55 @@
 		justify-content: space-between;
 		align-items: center;
 		width: 100%;
-		color: #71717A;
-		font-size: 0.75rem;
+		color: var(--text-muted);
+		font-size: 0.78rem;
 		flex-wrap: wrap;
-		gap: 0.75rem;
+		gap: 0.75rem 1.5rem;
 	}
 
 	.chart-legend {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
+		gap: 0.5rem 1.25rem;
 		flex-wrap: wrap;
 	}
 
 	.legend-item {
 		display: flex;
 		align-items: center;
-		gap: 0.35rem;
-		font-size: 0.725rem;
-		color: #A1A1AA;
+		gap: 0.45rem;
+		font-family: var(--font-sans);
+		font-size: 0.74rem;
+		color: var(--text-secondary);
 	}
 
 	.legend-pip {
-		width: 6px;
-		height: 6px;
+		width: 7px;
+		height: 7px;
 		border-radius: 50%;
 	}
 
 	.pv-pip {
-		background: #F59E0B;
+		background: var(--color-pv);
 	}
 
 	.load-pip {
-		background: #38BDF8;
+		background: var(--color-load);
 	}
 
 	.surplus-pip {
-		background: #10B981;
+		background: var(--color-surplus);
 	}
 
 	.deficit-pip {
-		background: #F43F5E;
+		background: var(--color-deficit);
 	}
 
-	/* SVG Area */
+	/* SVG canvas */
 	.svg-wrap {
 		width: 100%;
 		overflow-x: auto;
-		background: #000000;
+		padding: 0.75rem 0.75rem 0.5rem;
 	}
 
 	.chart-svg {
@@ -758,12 +773,12 @@
 	}
 
 	.grid-line {
-		stroke: #181820;
+		stroke: rgba(255, 244, 225, 0.06);
 		stroke-width: 1;
 	}
 
 	.axis-text {
-		fill: #52525B;
+		fill: var(--text-muted);
 		font-size: 10px;
 	}
 
@@ -772,7 +787,7 @@
 	}
 
 	.axis-sub {
-		fill: #3F3F46;
+		fill: var(--text-faint);
 		font-size: 9px;
 	}
 
@@ -782,40 +797,53 @@
 	}
 
 	.limit-line.pv-limit {
-		stroke: rgba(245, 158, 11, 0.35);
+		stroke: rgba(232, 137, 12, 0.5);
 	}
 
 	.limit-line.load-limit {
-		stroke: rgba(56, 189, 248, 0.35);
+		stroke: rgba(45, 132, 214, 0.45);
 	}
 
 	.limit-label {
 		font-size: 9.5px;
 		font-weight: 500;
 		text-anchor: end;
+		fill: currentColor;
 	}
 
 	.point-pv {
-		fill: #F59E0B;
+		fill: var(--color-pv);
 	}
 
 	.point-load {
-		fill: #38BDF8;
+		fill: var(--color-load);
 	}
 
 	.point-pv.active,
 	.point-load.active {
-		stroke: #FFFFFF;
-		stroke-width: 1.5;
+		stroke: var(--surface);
+		stroke-width: 2.2;
 	}
 
 	.cursor-guide {
-		stroke: #3F3F46;
+		stroke: rgba(255, 244, 225, 0.28);
 		stroke-width: 1;
-		stroke-dasharray: 2 2;
+		stroke-dasharray: 2 3;
 	}
 
 	.hit-column {
 		cursor: crosshair;
+	}
+
+	@media (max-width: 760px) {
+		.chart-header,
+		.guide-panel,
+		.telemetry-bar {
+			padding-inline: 1.25rem;
+		}
+
+		.chart-title {
+			font-size: 1.55rem;
+		}
 	}
 </style>

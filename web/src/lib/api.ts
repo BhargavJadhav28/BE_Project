@@ -1,31 +1,52 @@
+import { env } from '$env/dynamic/public';
 import type { BackendHealth, ForecastRequest, ForecastResponse } from './types';
 
-const API_BASE = '/api';
-const DIRECT_BACKEND = 'http://127.0.0.1:8000';
+function getConfiguredApiUrl(): string | undefined {
+	return (env.PUBLIC_API_URL || (import.meta.env?.PUBLIC_API_URL as string | undefined))?.trim().replace(/\/+$/, '') || undefined;
+}
+
+function getTargetEndpoints(path: string): string[] {
+	const configured = getConfiguredApiUrl();
+	const list: string[] = [];
+
+	if (configured) {
+		list.push(`${configured}${path}`);
+	}
+	// Vite dev proxy
+	list.push(`/api${path}`);
+	// Local direct backend (for local dev environments)
+	if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+		list.push(`http://127.0.0.1:8000${path}`);
+	}
+
+	return Array.from(new Set(list));
+}
 
 export async function checkBackendHealth(): Promise<BackendHealth> {
-	try {
-		// First try vite proxy /api/health
-		let res = await fetch(`${API_BASE}/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
-		if (!res.ok) {
-			// Try direct backend
-			res = await fetch(`${DIRECT_BACKEND}/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
+	const hasConfiguredRemote = Boolean(getConfiguredApiUrl());
+	const timeoutMs = hasConfiguredRemote ? 6000 : 2500;
+	const endpoints = getTargetEndpoints('/health');
+
+	for (const endpoint of endpoints) {
+		try {
+			const res = await fetch(endpoint, {
+				method: 'GET',
+				signal: AbortSignal.timeout(timeoutMs)
+			});
+			if (res.ok) {
+				const data = await res.json();
+				return {
+					status: 'healthy',
+					service: data.service,
+					manifest: data.manifest
+				};
+			}
+		} catch {
+			// Try next candidate endpoint
 		}
-		if (res.ok) {
-			const data = await res.json();
-			return {
-				status: 'healthy',
-				service: data.service,
-				manifest: data.manifest
-			};
-		}
-	} catch (e: any) {
-		return {
-			status: 'offline',
-			error: e?.message || 'Backend connection failed'
-		};
 	}
-	return { status: 'offline' };
+
+	return { status: 'offline', error: 'Backend unreachable or starting up' };
 }
 
 export class BackendRejectionError extends Error {
@@ -42,8 +63,10 @@ export async function requestForecast(payload: ForecastRequest): Promise<{
 	isLiveBackend: boolean;
 	source: string;
 }> {
-	// Attempt real backend invocation
-	const targets = [`${API_BASE}/forecast/24h`, `${DIRECT_BACKEND}/forecast/24h`];
+	const hasConfiguredRemote = Boolean(getConfiguredApiUrl());
+	// Extended timeout (25s) allows Render free-tier cold boot to finish on initial request
+	const timeoutMs = hasConfiguredRemote ? 25000 : 4000;
+	const targets = getTargetEndpoints('/forecast/24h');
 
 	for (const endpoint of targets) {
 		try {
@@ -51,7 +74,7 @@ export async function requestForecast(payload: ForecastRequest): Promise<{
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(payload),
-				signal: AbortSignal.timeout(4000)
+				signal: AbortSignal.timeout(timeoutMs)
 			});
 
 			if (res.ok) {
