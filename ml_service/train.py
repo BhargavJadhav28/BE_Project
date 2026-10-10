@@ -263,4 +263,22 @@ def run_training(config: MicrogridConfig = MicrogridConfig()) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    run_training()
+    import argparse
+    parser = argparse.ArgumentParser(description="Train Microgrid Forecasting Models.")
+    parser.add_argument(
+        "--source",
+        choices=["synthetic", "csv"],
+        default="csv",
+        help="Telemetry source: 'csv' (default) or 'synthetic'.",
+    )
+    parser.add_argument(
+        "--csv-path",
+        default="data/raw_telemetry.csv",
+        help="Path to telemetry CSV file if --source csv is selected.",
+    )
+    args = parser.parse_args()
+    run_config = MicrogridConfig(
+        telemetry_source_type=args.source,
+        csv_telemetry_path=args.csv_path,
+    )
+    run_training(run_config)

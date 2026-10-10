@@ -18,6 +18,7 @@ class MicrogridConfig:
     pv_peak_kw: float = 50.0        # Rated Solar PV inverter capacity (kW)
     load_peak_kw: float = 45.0      # Rated peak load capacity (kW)
     base_load_kw: float = 10.0      # Minimum overnight baseload (kW)
+    load_transient_peak_kw: float = 54.0  # Transient load peak ceiling (1.2 * load_peak_kw)
 
     # Temporal & Horizon Parameters
     forecast_horizon_hours: int = 24
@@ -25,7 +26,7 @@ class MicrogridConfig:
     max_imputable_gap_hours: int = 3 # Maximum consecutive sensor dropout permitted
 
     # Data Ingestion Source
-    telemetry_source_type: Literal["synthetic", "csv"] = "synthetic"
+    telemetry_source_type: Literal["synthetic", "csv"] = "csv"
     csv_telemetry_path: str = "data/raw_telemetry.csv"
     random_seed: int = 42
 

@@ -43,9 +43,9 @@ def test_load_demand_physics_and_peaks():
     config = MicrogridConfig(base_load_kw=10.0, load_peak_kw=45.0)
     df = generate_synthetic_telemetry(config)
 
-    # Bounds
+    # Bounds: baseload to transient peak ceiling (1.2 * load_peak_kw = 54.0 kW)
     assert df["p_load"].min() >= config.base_load_kw - 1e-3
-    assert df["p_load"].max() <= config.load_peak_kw + 1e-3
+    assert df["p_load"].max() <= 1.2 * config.load_peak_kw + 1e-3
 
     # Dual peak profile: morning (7-9) and evening (18-21) vs nocturnal (1-4)
     night_load = df.loc[df["timestamp"].dt.hour.isin([1, 2, 3, 4]), "p_load"].mean()

@@ -113,10 +113,16 @@ class CSVTelemetrySource(BaseTelemetrySource):
         start_time: Optional[pd.Timestamp | str] = None,
         end_time: Optional[pd.Timestamp | str] = None,
     ) -> pd.DataFrame:
-        if not self.csv_path.exists():
+        target_path = self.csv_path
+        if not target_path.is_absolute() and not target_path.exists():
+            candidate = Path(__file__).resolve().parent.parent.parent / target_path
+            if candidate.exists():
+                target_path = candidate
+
+        if not target_path.exists():
             raise FileNotFoundError(f"Telemetry CSV file not found: {self.csv_path}")
 
-        raw_df = pd.read_csv(self.csv_path)
+        raw_df = pd.read_csv(target_path)
         df = self._validate_schema(raw_df)
 
         start_ts = _normalize_bound_timestamp(start_time)

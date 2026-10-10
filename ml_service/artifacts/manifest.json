@@ -1,6 +1,6 @@
 {
   "model_version": "1.0.0",
-  "trained_at": "2026-09-26T12:59:01.339942",
+  "trained_at": "2026-10-10T18:44:50.128838",
   "config": {
     "pv_peak_kw": 50.0,
     "load_peak_kw": 45.0,
@@ -54,54 +54,54 @@
   },
   "seasonal_validation_metrics": {
     "spring": {
-      "pv_daylight_nmae": 0.0034,
-      "pv_daylight_nmae_pct": 0.34,
-      "pv_daylight_r2": 0.9995,
-      "load_nmae": 0.034,
-      "load_nmae_pct": 3.4,
-      "load_r2": 0.8878
+      "pv_daylight_nmae": 0.0245,
+      "pv_daylight_nmae_pct": 2.45,
+      "pv_daylight_r2": 0.979,
+      "load_nmae": 0.0421,
+      "load_nmae_pct": 4.21,
+      "load_r2": 0.9643
     },
     "summer": {
-      "pv_daylight_nmae": 0.004,
-      "pv_daylight_nmae_pct": 0.4,
-      "pv_daylight_r2": 0.9994,
-      "load_nmae": 0.0338,
-      "load_nmae_pct": 3.38,
-      "load_r2": 0.946
+      "pv_daylight_nmae": 0.0158,
+      "pv_daylight_nmae_pct": 1.58,
+      "pv_daylight_r2": 0.9898,
+      "load_nmae": 0.0346,
+      "load_nmae_pct": 3.46,
+      "load_r2": 0.9578
     },
     "autumn": {
-      "pv_daylight_nmae": 0.0028,
-      "pv_daylight_nmae_pct": 0.28,
-      "pv_daylight_r2": 0.9997,
-      "load_nmae": 0.0265,
-      "load_nmae_pct": 2.65,
-      "load_r2": 0.9581
+      "pv_daylight_nmae": 0.0211,
+      "pv_daylight_nmae_pct": 2.11,
+      "pv_daylight_r2": 0.9816,
+      "load_nmae": 0.035,
+      "load_nmae_pct": 3.5,
+      "load_r2": 0.9643
     },
     "winter": {
-      "pv_daylight_nmae": 0.0016,
-      "pv_daylight_nmae_pct": 0.16,
-      "pv_daylight_r2": 0.9999,
-      "load_nmae": 0.0292,
-      "load_nmae_pct": 2.92,
-      "load_r2": 0.9118
+      "pv_daylight_nmae": 0.0186,
+      "pv_daylight_nmae_pct": 1.86,
+      "pv_daylight_r2": 0.984,
+      "load_nmae": 0.0304,
+      "load_nmae_pct": 3.04,
+      "load_r2": 0.9714
     }
   },
   "aggregate_cv_metrics": {
-    "avg_pv_daylight_nmae": 0.003,
-    "avg_pv_daylight_nmae_pct": 0.295,
-    "avg_pv_daylight_r2": 0.9996,
-    "avg_load_nmae": 0.0309,
-    "avg_load_nmae_pct": 3.0875,
-    "avg_load_r2": 0.9259
+    "avg_pv_daylight_nmae": 0.02,
+    "avg_pv_daylight_nmae_pct": 2.0,
+    "avg_pv_daylight_r2": 0.9836,
+    "avg_load_nmae": 0.0355,
+    "avg_load_nmae_pct": 3.5525,
+    "avg_load_r2": 0.9645
   },
   "full_dataset_metrics": {
-    "pv_daylight_nmae": 0.0012,
-    "pv_daylight_nmae_pct": 0.12,
-    "pv_daylight_r2": 1.0,
-    "load_nmae": 0.0249,
-    "load_nmae_pct": 2.49,
-    "load_r2": 0.958
+    "pv_daylight_nmae": 0.0138,
+    "pv_daylight_nmae_pct": 1.38,
+    "pv_daylight_r2": 0.9925,
+    "load_nmae": 0.029,
+    "load_nmae_pct": 2.9,
+    "load_r2": 0.9773
   },
   "quality_targets_met": true,
-  "total_training_pipeline_seconds": 18.92
+  "total_training_pipeline_seconds": 20.69
 }
