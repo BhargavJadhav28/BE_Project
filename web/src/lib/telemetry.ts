@@ -106,47 +106,149 @@ function getDayOfYear(date: Date): number {
 }
 
 function computeWeatherPhysics(hour: number, dayOfYear: number) {
-	// Solar geometry
+	// Solar geometry for Pune microgrid (18.55°N)
 	const delta = (23.45 * Math.PI / 180) * Math.sin((2 * Math.PI * (284 + dayOfYear)) / 365.25);
 	const omega = (15 * Math.PI / 180) * (hour - 12);
-	const phi = (25 * Math.PI / 180);
+	const phi = (18.55 * Math.PI / 180);
 
 	let cosZenith = Math.sin(phi) * Math.sin(delta) + Math.cos(phi) * Math.cos(delta) * Math.cos(omega);
 	cosZenith = Math.max(0, cosZenith);
 
-	const clearSky = cosZenith > 0 ? 1000 * Math.pow(cosZenith, 1.15) : 0;
-	const cloud = 20 + 15 * Math.sin(hour / 3.5);
+	const clearSky = cosZenith > 0 ? 1050 * Math.pow(cosZenith, 1.15) : 0;
+	// Seasonal monsoon cloud modifier (June - August: days 160 to 260)
+	const monsoonCloud = (dayOfYear >= 160 && dayOfYear <= 260) ? 35 : 0;
+	const cloud = Math.min(100, Math.max(0, 18 + 10 * Math.sin(hour / 3.5) + monsoonCloud));
 	const ghi = clearSky * (1 - 0.75 * (cloud / 100));
 
-	const seasonalTemp = 18 + 14 * Math.sin((2 * Math.PI * (dayOfYear - 105)) / 365.25);
-	const diurnalTemp = 7 * Math.cos((2 * Math.PI * (hour - 15)) / 24);
-	const temp = seasonalTemp + diurnalTemp;
+	// Ambient Temperature calibrated to Pune climate (12.0°C to 43.5°C)
+	const seasonalTemp = 24.0 + 7.5 * Math.sin((2 * Math.PI * (dayOfYear - 75)) / 365.25);
+	const diurnalTemp = (8.0 - 2.5 * (cloud / 100)) * Math.cos((2 * Math.PI * (hour - 15)) / 24);
+	const monsoonCooling = (dayOfYear >= 160 && dayOfYear <= 260) ? -3.5 * (cloud / 100) : 0;
+	const temp = Math.round((seasonalTemp + diurnalTemp + monsoonCooling) * 10) / 10;
 
-	return { ghi: Math.max(0, ghi), temp, cloud: Math.min(100, Math.max(0, cloud)) };
+	return { ghi: Math.max(0, ghi), temp, cloud };
 }
 
 function computePowerPhysics(ghi: number, temp: number, cloud: number, hour: number, isWeekend: boolean) {
-	// 50 kW peak PV with thermal derating
+	// 50 kW peak PV with thermal derating and inverter efficiency
 	let derating = 1 - 0.004 * (temp - 25);
 	derating = Math.max(0.7, Math.min(1.1, derating));
 
-	let p_pv = 50.0 * (ghi / 1000) * derating;
-	if (ghi <= 0) p_pv = 0;
-	p_pv = Math.max(0, Math.min(50.0, p_pv));
+	const pDc = 50.0 * (ghi / 1000) * derating;
+	// Sandia inverter conversion loss
+	const pLoss = pDc > 0.10 ? (0.10 + 0.018 * pDc + 0.0004 * (pDc * pDc)) : pDc;
+	let pPv = Math.max(0, pDc - pLoss);
+	if (ghi <= 0) pPv = 0;
+	pPv = Math.max(0, Math.min(50.0, pPv));
 
-	// Load demand with dual peak
+	// Commercial facility load demand with Pune HVAC thermal response
 	const diurnalCurve = [
-		0.28, 0.25, 0.24, 0.24, 0.26, 0.32,
-		0.50, 0.75, 0.85, 0.78, 0.72, 0.70,
-		0.68, 0.67, 0.69, 0.72, 0.76, 0.82,
-		0.95, 1.00, 0.92, 0.78, 0.55, 0.38
+		0.05, 0.03, 0.02, 0.02, 0.03, 0.06,
+		0.25, 0.50, 0.68, 0.75,
+		0.78, 0.80, 0.76, 0.75, 0.78, 0.82, 0.85, 0.88,
+		0.95, 1.00, 0.98, 0.88, 0.70, 0.40
 	];
 	const factor = diurnalCurve[hour % 24];
 	const weekendDiscount = isWeekend ? 0.82 : 1.0;
-	const hvac = Math.max(0, temp - 22) * 0.45 + Math.max(0, 16 - temp) * 0.35;
+	// HVAC cooling kicks in strongly above 24°C
+	const coolingLoad = Math.max(0, temp - 24.0) * 0.70;
+	const heatingLoad = Math.max(0, 16.0 - temp) * 0.35;
+	const hvac = coolingLoad + heatingLoad;
 
-	let p_load = 10.0 + (30.0 * factor * weekendDiscount) + hvac;
-	p_load = Math.max(10.0, Math.min(45.0, p_load));
+	let pLoad = 10.0 + (30.0 * factor * weekendDiscount) + hvac;
+	pLoad = Math.max(10.0, Math.min(54.0, pLoad));
 
-	return { p_pv, p_load };
+	return { p_pv: Math.round(pPv * 100) / 100, p_load: Math.round(pLoad * 100) / 100 };
 }
+
+/**
+ * Fetch live real-time weather and 24-hour forward forecast for Pune (18.55°N, 73.85°E) from Open-Meteo.
+ * Falls back to offline physics generation if the network is unavailable or date is outside the live window.
+ */
+export async function getTelemetryData(
+	originStr: string,
+	injectGapHours: number = 0
+): Promise<{ history: HistoricalReading[]; weather: WeatherForecastStep[]; isLiveWeather: boolean }> {
+	try {
+		const targetDate = new Date(originStr.endsWith('Z') ? originStr : originStr + 'Z');
+		const now = new Date();
+		const diffHours = Math.abs(targetDate.getTime() - now.getTime()) / (3600 * 1000);
+
+		// If date is within 48h of now, query live Open-Meteo API
+		if (diffHours <= 48) {
+			const res = await fetch(
+				'https://api.open-meteo.com/v1/forecast?latitude=18.55&longitude=73.85&hourly=temperature_2m,shortwave_radiation,cloud_cover&past_days=2&forecast_days=2&timezone=auto',
+				{ signal: AbortSignal.timeout(3500) }
+			);
+
+			if (res.ok) {
+				const json = await res.json();
+				const times: string[] = json.hourly?.time || [];
+				const temps: number[] = json.hourly?.temperature_2m || [];
+				const ghis: number[] = json.hourly?.shortwave_radiation || [];
+				const clouds: number[] = json.hourly?.cloud_cover || [];
+
+				// Match origin hour
+				const originPrefix = originStr.slice(0, 13); // "YYYY-MM-DDTHH"
+				let originIdx = times.findIndex((t) => t.startsWith(originPrefix));
+
+				if (originIdx >= 48 && originIdx + 24 <= times.length) {
+					const history: HistoricalReading[] = [];
+					const weather: WeatherForecastStep[] = [];
+
+					// 49 historical hours [-48h .. T]
+					for (let i = 48; i >= 0; i--) {
+						const idx = originIdx - i;
+						const iso = times[idx] ? times[idx] + ':00' : '';
+						const date = new Date(iso);
+						const hour = date.getHours();
+						const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+
+						if (injectGapHours > 0 && i >= 6 && i < 6 + injectGapHours) {
+							continue;
+						}
+
+						const ghi = Math.max(0, ghis[idx] || 0);
+						const temp = temps[idx] || 25;
+						const cloud = Math.min(100, Math.max(0, clouds[idx] || 0));
+						const { p_pv, p_load } = computePowerPhysics(ghi, temp, cloud, hour, isWeekend);
+
+						history.push({
+							timestamp: iso,
+							ghi: Math.round(ghi * 10) / 10,
+							temp_amb: Math.round(temp * 10) / 10,
+							cloud_cover: Math.round(cloud * 10) / 10,
+							p_pv,
+							p_load
+						});
+					}
+
+					// 24 forward weather forecast hours [T+1h .. T+24h]
+					for (let h = 1; h <= 24; h++) {
+						const idx = originIdx + h;
+						const iso = times[idx] ? times[idx] + ':00' : '';
+						const ghi = Math.max(0, ghis[idx] || 0);
+						const temp = temps[idx] || 25;
+						const cloud = Math.min(100, Math.max(0, clouds[idx] || 0));
+
+						weather.push({
+							timestamp: iso,
+							ghi: Math.round(ghi * 10) / 10,
+							temp_amb: Math.round(temp * 10) / 10,
+							cloud_cover: Math.round(cloud * 10) / 10
+						});
+					}
+
+					return { history, weather, isLiveWeather: true };
+				}
+			}
+		}
+	} catch (e) {
+		console.warn('Live Open-Meteo fetch failed or offline; using calibrated Pune simulation:', e);
+	}
+
+	// Offline or historical scenario fallback
+	const { history, weather } = generateScenarioData(originStr, injectGapHours);
+	return { history, weather, isLiveWeather: false };
+}
+

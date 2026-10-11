@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { checkBackendHealth, requestForecast } from '$lib/api';
-	import { generateScenarioData, SCENARIO_PRESETS } from '$lib/telemetry';
+	import { generateScenarioData, getTelemetryData, SCENARIO_PRESETS } from '$lib/telemetry';
 	import type { BackendHealth, ForecastResponse, HistoricalReading, WeatherForecastStep } from '$lib/types';
 	import ForecastChart from '$lib/components/ForecastChart.svelte';
 	import PipelineSteps from '$lib/components/PipelineSteps.svelte';
@@ -17,6 +17,7 @@
 	let backendHealth = $state<BackendHealth>({ status: 'checking' });
 	let isRunning = $state(false);
 	let isLiveBackend = $state(false);
+	let isLiveWeather = $state(false);
 	let executionSource = $state('');
 	let showInfoModal = $state(false);
 	let pipelineError = $state<string | null>(null);
@@ -67,9 +68,10 @@
 		pipelineError = null;
 
 		try {
-			const { history, weather } = generateScenarioData(customOrigin, injectGap ? gapHours : 0);
-			historyData = history;
-			weatherData = weather;
+			const data = await getTelemetryData(customOrigin, injectGap ? gapHours : 0);
+			historyData = data.history;
+			weatherData = data.weather;
+			isLiveWeather = data.isLiveWeather;
 
 			const res = await requestForecast({
 				origin: customOrigin,
@@ -102,6 +104,7 @@
 			const d = String(current.getUTCDate()).padStart(2, '0');
 			const h = String(current.getUTCHours()).padStart(2, '0');
 			customOrigin = `${y}-${m}-${d}T${h}:00`;
+			selectedScenarioId = '';
 			runPipeline();
 		} catch (e) {
 			console.error('Failed to adjust origin', e);
@@ -115,6 +118,7 @@
 		const d = String(now.getDate()).padStart(2, '0');
 		const h = String(now.getHours()).padStart(2, '0');
 		customOrigin = `${y}-${m}-${d}T${h}:00`;
+		selectedScenarioId = '';
 		runPipeline();
 	}
 
@@ -352,10 +356,21 @@
 			<div class="scenarios-row">
 				<span class="scenarios-label">Operational scenarios:</span>
 				<div class="scenario-buttons font-mono">
+					<button
+						class="scenario-btn live-weather-btn"
+						class:active={isLiveWeather}
+						onclick={setOriginToNow}
+						title="Fetch real-time live Pune weather and 24h forecast from Open-Meteo API"
+					>
+						<span>Live Pune Weather</span>
+						{#if isLiveWeather}
+							<span class="badge-mini font-mono live-badge">Live API</span>
+						{/if}
+					</button>
 					{#each SCENARIO_PRESETS as preset}
 						<button
 							class="scenario-btn"
-							class:active={selectedScenarioId === preset.id}
+							class:active={selectedScenarioId === preset.id && !isLiveWeather}
 							onclick={() => loadScenario(preset.id)}
 						>
 							<span>{preset.name}</span>
@@ -369,7 +384,15 @@
 
 			<!-- Preset Info -->
 			<div class="scenario-meta">
-				<p class="meta-description">{currentPreset.description}</p>
+				{#if isLiveWeather}
+					<p class="meta-description font-mono">
+						<strong style="color: var(--accent-solar);">Live Weather Mode</strong>: Sourced in real time from Open-Meteo Pune Station (18.55°N, 73.85°E). 48h historical readings and 24h forward solar irradiance.
+					</p>
+				{:else if selectedScenarioId && currentPreset}
+					<p class="meta-description">{currentPreset.description}</p>
+				{:else}
+					<p class="meta-description">Custom forecast origin anchored at {customOrigin}. Physics simulation mode.</p>
+				{/if}
 			</div>
 		</section>
 
