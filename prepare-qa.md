@@ -1,11 +1,4 @@
-# Microgrid Architecture & Forecasting: Comprehensive Q&A Reference Guide
-
-This document contains a structured technical question-and-answer guide for the **Helios** microgrid forecasting subsystem and its operational architecture.
-
-All sections follow the **ASD-STE100** (Simplified Technical English) specification:
-- Sentences are short and direct.
-- Active voice is used.
-- Technical terms have exact definitions.
+# Microgrid Architecture & Forecasting: Q&A Reference Guide
 
 ---
 
@@ -20,7 +13,7 @@ All sections follow the **ASD-STE100** (Simplified Technical English) specificat
   2. The Facility Building electrical panel.
   3. The Battery Energy Storage System (BESS) bi-directional inverter.
   4. The Utility Grid connection point.
-- The AC bus maintains a stable alternating current voltage and frequency (for example: $400\text{ V}$ at $50\text{ Hz}$).
+- The AC bus maintains a stable alternating current voltage and frequency (for example: 400 V at 50 Hz).
 
 ---
 
@@ -47,8 +40,8 @@ All sections follow the **ASD-STE100** (Simplified Technical English) specificat
   3. The building consumes this AC power immediately from the AC bus.
   4. **Only the remaining surplus power** enters the battery.
 - **Why we do this**:
-  - Routing all power through the battery first wastes $15\%$ to $20\%$ of energy through conversion losses and heat.
-  - Supplying the load directly from solar has only one conversion step ($~4\%$ loss).
+  - Routing all power through the battery first wastes 15% to 20% of energy through conversion losses and heat.
+  - Supplying the load directly from solar has only one conversion step (~4% loss).
   - This direct flow protects battery cells from unnecessary wear and degradation.
 
 ---
@@ -56,12 +49,12 @@ All sections follow the **ASD-STE100** (Simplified Technical English) specificat
 ### Q4: What do "Charge / Store extra" and "Discharge / Supply load" mean?
 **Answer**:
 - The microgrid calculates the instantaneous net power balance:
-  $$P_{\text{net}} = P_{\text{pv}} - P_{\text{load}}$$
-- **Charge / Store Extra ($P_{\text{net}} \ge 0$)**:
+  P_net = P_pv - P_load
+- **Charge / Store Extra (P_net >= 0)**:
   - Solar generation is larger than the building demand.
-  - Solar power supplies $100\%$ of the building demand.
+  - Solar power supplies 100% of the building demand.
   - The excess power charges the battery cells for later use.
-- **Discharge / Supply Load ($P_{\text{net}} < 0$)**:
+- **Discharge / Supply Load (P_net < 0)**:
   - Building demand is larger than solar generation.
   - Solar power cannot supply the full load alone.
   - The battery discharges stored energy to cover the power deficit.
@@ -69,11 +62,11 @@ All sections follow the **ASD-STE100** (Simplified Technical English) specificat
 
 ---
 
-### Q5: At night, solar power is zero ($0.0\text{ kW}$), but load exists. Where does the power come from?
+### Q5: At night, solar power is zero (0.0 kW), but load exists. Where does the power come from?
 **Answer**:
 - The microgrid draws power according to this priority sequence:
   1. **Priority 1 (Battery BESS)**: The battery discharges stored solar energy. The battery inverter converts DC cell power into AC power to feed the building.
-  2. **Priority 2 (Utility Grid Import)**: If the battery reaches its minimum safety limit ($\text{State of Charge} \le 15\%$), the microgrid imports power from the utility grid.
+  2. **Priority 2 (Utility Grid Import)**: If the battery reaches its minimum safety limit (State of Charge <= 15%), the microgrid imports power from the utility grid.
   3. **Priority 3 (Hybrid Operation)**: If building demand exceeds the maximum discharge capacity of the battery inverter, the battery supplies its maximum power and the utility grid supplies the remaining deficit.
 
 ---
@@ -90,9 +83,9 @@ A simple fixed rule fails in four operational scenarios:
 2. **Time-of-Day (TOD) Electricity Tariffs**:
    - Grid power prices change continuously (night is cheap, evening peak is expensive).
    - A naive system might discharge all battery energy during afternoon low-rate hours.
-   - An AI-assisted system holds battery energy until evening peak-rate hours ($18:00\text{--}22:00$).
+   - An AI-assisted system holds battery energy until evening peak-rate hours (18:00 - 22:00).
 3. **Finite Battery Storage (Solar Curtailment)**:
-   - A battery has a limited capacity (for example: $60\text{ kWh}$).
+   - A battery has a limited capacity (for example: 60 kWh).
    - On bright days, excess solar generation exceeds battery capacity.
    - Once full, all remaining solar generation is wasted (curtailed).
    - Forecasting enables early load shifting and proactive power export.
@@ -106,13 +99,13 @@ A simple fixed rule fails in four operational scenarios:
 **Answer**:
 - **Helios Subsystem**:
   - Operates as the **supervisory forecasting layer**.
-  - Predicts the 24-hour forward solar generation vector ($\hat{P}_{\text{pv}}$).
-  - Predicts the 24-hour forward building load demand vector ($\hat{P}_{\text{load}}$).
-  - Outputs the net power balance ($P_{\text{net}} = \hat{P}_{\text{pv}} - \hat{P}_{\text{load}}$).
+  - Predicts the 24-hour forward solar generation vector (P_pv).
+  - Predicts the 24-hour forward building load demand vector (P_load).
+  - Outputs the net power balance (P_net = P_pv - P_load).
 - **Downstream Dispatch Optimizer**:
   - Consumes the 24-hour forecast payload from Helios.
   - Runs a mathematical optimization algorithm (Mixed-Integer Linear Programming - MILP).
-  - Solves the cost equation using electricity tariff schedules and battery State of Charge ($\text{SoC}$) limits.
+  - Solves the cost equation using electricity tariff schedules and battery State of Charge (SoC) limits.
   - Triggers the physical battery relays to charge, hold, or discharge.
 
 ---
@@ -139,18 +132,18 @@ The microgrid is **physically tied to the main grid at all times** in parallel. 
 2. **Voltage Collapse & Reverse Fault Current**:
    - A grid short-circuit drops external line voltage to zero.
    - If connected, microgrid solar and battery power rushes backward into the fault.
-   - The microgrid must open its main breaker in $< 20\text{ milliseconds}$ to prevent voltage collapse.
+   - The microgrid must open its main breaker in < 20 milliseconds to prevent voltage collapse.
 3. **Loss of Shock Absorption**:
    - The main grid absorbs sudden solar drops (passing clouds) and load spikes.
-   - When the grid disconnects, the battery must absorb $100\%$ of microgrid fluctuations.
+   - When the grid disconnects, the battery must absorb 100% of microgrid fluctuations.
 
 ---
 
 ### Q10: How does Helios assist physical self-healing during islanded mode?
 **Answer**:
-When an islanding event occurs, the main grid power is zero ($P_{\text{grid}} = 0$):
+When an islanding event occurs, the main grid power is zero (P_grid = 0):
 1. **Survival Window Calculation**:
-   - Helios provides the 24-hour forward net power forecast ($P_{\text{net}}$).
+   - Helios provides the 24-hour forward net power forecast (P_net).
    - The controller calculates how many hours the facility can survive on remaining battery energy.
 2. **Intelligent Load Shedding**:
    - If Helios predicts a severe deficit (night or clouds), the controller turns off non-critical loads (water heaters, parking lights) to protect critical loads (servers, medical units).
@@ -166,11 +159,11 @@ When an islanding event occurs, the main grid power is zero ($P_{\text{grid}} = 
 - Physical faults often cause communication drops and lost sensor packets.
 - **Sanitizer Pipeline**:
   1. Normalizes all timestamps to a strict 1-hour UTC frequency (`dt.floor('h')`).
-  2. Reindexes the history dataframe over the full lookback interval ($[T - 48\text{h}, T]$).
-  3. **Imputes sensor dropouts $\le 3$ hours** using linear interpolation.
-  4. Forces nocturnal solar generation to $0.0\text{ kW}$ if $GHI \le 0\text{ W/m}^2$.
-  5. Clips negative calibration drift (pyranometers down to $-25\text{ W/m}^2$, inverters down to $-5\text{ kW}$).
-  6. **Rejects gaps $> 3$ hours**: Raises `TelemetryGapError` (HTTP 422) to prevent machine learning corruption.
+  2. Reindexes the history dataframe over the full lookback interval ([T - 48h, T]).
+  3. **Imputes sensor dropouts <= 3 hours** using linear interpolation.
+  4. Forces nocturnal solar generation to 0.0 kW if GHI <= 0 W/m^2.
+  5. Clips negative calibration drift (pyranometers down to -25 W/m^2, inverters down to -5 kW).
+  6. **Rejects gaps > 3 hours**: Raises `TelemetryGapError` (HTTP 422) to prevent machine learning corruption.
 
 ---
 
@@ -182,21 +175,21 @@ When an islanding event occurs, the main grid power is zero ($P_{\text{grid}} = 
 - Data comes from either physical sensor CSV logs or our synthetic physics generator.
 - **Required 6-Column Schema**:
   1. `timestamp`: Hourly UTC datetime.
-  2. `ghi`: Global Horizontal Irradiance ($\text{W/m}^2$).
-  3. `temp_amb`: Ambient dry-bulb temperature ($^\circ\text{C}$).
-  4. `cloud_cover`: Cloud fraction percentage ($0\text{--}100\%$).
-  5. `p_pv`: Solar active generation ($0.0\text{--}50.0\text{ kW}$).
-  6. `p_load`: Facility electrical load ($0.0\text{--}54.0\text{ kW}$).
+  2. `ghi`: Global Horizontal Irradiance (W/m^2).
+  3. `temp_amb`: Ambient dry-bulb temperature (°C).
+  4. `cloud_cover`: Cloud fraction percentage (0 - 100%).
+  5. `p_pv`: Solar active generation (0.0 - 50.0 kW).
+  6. `p_load`: Facility electrical load (0.0 - 54.0 kW).
 
 ---
 
-### Q13: What model architecture is used and why (ADR 0001)?
+### Q13: What model architecture is used and why?
 **Answer**:
 - The system uses **Horizon-Conditioned LightGBM Regressors** (`lightgbm.LGBMRegressor`).
-- **Why this was chosen ([ADR 0001](file:///c:/Users/hp/Desktop/BhargavJ/Projects/BE_Project/docs/adr/0001-horizon-conditioned-forecasting.md))**:
+- **Why this was chosen**:
   - *Recursive autoregression was rejected*: Prediction errors compound across 24 sequential steps.
   - *Direct multi-model ensemble was rejected*: Requires 48 separate models, causing storage bloat and slow retraining.
-  - *Horizon-conditioned regression was adopted*: One single model per target accepts the future horizon index ($h \in [1, 24]$) as an input feature. It evaluates all 24 future steps in one fast vectorized pass ($< 15\text{ ms}$).
+  - *Horizon-conditioned regression was adopted*: One single model per target accepts the future horizon index (h in [1, 24]) as an input feature. It evaluates all 24 future steps in one fast vectorized pass (< 15 ms).
 
 ---
 
@@ -218,23 +211,23 @@ Evaluated from `ml_service/artifacts/manifest.json`:
 
 | Metric | Acceptance SLA | Achieved Metric | Verification Status |
 | :--- | :--- | :--- | :--- |
-| **Solar Daylight nMAE ($nMAE_{\text{pv}}$)** | $\le 5.0\%$ | **0.30%** | **PASSED** |
-| **Solar Fit ($R^2$)** | $\ge 0.85$ | **0.9996** | **PASSED** |
-| **Load Demand nMAE ($nMAE_{\text{load}}$)** | $\le 6.0\%$ | **3.09%** | **PASSED** |
-| **Load Demand Fit ($R^2$)** | $\ge 0.85$ | **0.9259** | **PASSED** |
-| **Inference Latency** | $< 25.0\text{ ms}$ | **14.2 ms** | **PASSED** |
+| **Solar Daylight nMAE (nMAE_pv)** | <= 5.0% | **0.30%** | **PASSED** |
+| **Solar Fit (R²)** | >= 0.85 | **0.9996** | **PASSED** |
+| **Load Demand nMAE (nMAE_load)** | <= 6.0% | **3.09%** | **PASSED** |
+| **Load Demand Fit (R²)** | >= 0.85 | **0.9259** | **PASSED** |
+| **Inference Latency** | < 25.0 ms | **14.2 ms** | **PASSED** |
 
-> **Note on Daylight Masking**: Solar nMAE is calculated strictly on daylight hours ($GHI > 0$). This prevents score inflation from zero nocturnal solar output.
+> **Note on Daylight Masking**: Solar nMAE is calculated strictly on daylight hours (GHI > 0). This prevents score inflation from zero nocturnal solar output.
 
 ---
 
 ### Q16: What inputs are provided during inference?
 **Answer**:
 Inference requires two structured inputs:
-1. **Lookback History** ($[T - 48\text{h}, T]$):
+1. **Lookback History** ([T - 48h, T]):
    - 49 hourly rows (minimum 24 rows).
    - Columns: `timestamp`, `ghi`, `temp_amb`, `cloud_cover`, `p_pv`, `p_load`.
-2. **Forward Weather Forecast** ($[T + 1\text{h}, T + 24\text{h}]$):
+2. **Forward Weather Forecast** ([T + 1h, T + 24h]):
    - 24 hourly rows.
    - Columns: `timestamp`, `ghi`, `temp_amb`, `cloud_cover`.
 
@@ -245,20 +238,20 @@ Inference requires two structured inputs:
 The pipeline (`ml_service/features/pipeline.py`) creates distinct tabular matrices:
 
 #### Solar PV Features (18 Features):
-- `horizon`: Step index $h \in [1, 24]$.
-- Origin lags frozen at $T$: `p_pv_lag_0`, `p_pv_lag_1`, `p_pv_lag_23`, `p_pv_lag_24`.
+- `horizon`: Step index h in [1, 24].
+- Origin lags frozen at T: `p_pv_lag_0`, `p_pv_lag_1`, `p_pv_lag_23`, `p_pv_lag_24`.
 - Historical rolling statistics: `p_pv_mean_6h`, `p_pv_std_6h`, `p_pv_mean_24h`, `p_pv_std_24h`.
-- Future weather at $T+h$: `ghi_forecast`, `delta_ghi`, `temp_amb_forecast`, `cloud_cover_forecast`.
+- Future weather at T+h: `ghi_forecast`, `delta_ghi`, `temp_amb_forecast`, `cloud_cover_forecast`.
 - Cyclical calendar indicators: `sin_hour`, `cos_hour`, `sin_day_of_year`, `cos_day_of_year`, `is_weekend`.
 
 #### Load Demand Features (15 Features):
-- `horizon`: Step index $h \in [1, 24]$.
-- Origin lags frozen at $T$: `p_load_lag_0`, `p_load_lag_1`, `p_load_lag_23`, `p_load_lag_24`.
+- `horizon`: Step index h in [1, 24].
+- Origin lags frozen at T: `p_load_lag_0`, `p_load_lag_1`, `p_load_lag_23`, `p_load_lag_24`.
 - Historical rolling statistics: `p_load_mean_6h`, `p_load_std_6h`, `p_load_mean_24h`, `p_load_std_24h`.
-- Future temperature at $T+h$: `temp_amb_forecast` (HVAC driver).
+- Future temperature at T+h: `temp_amb_forecast` (HVAC driver).
 - Cyclical calendar indicators: `sin_hour`, `cos_hour`, `sin_day_of_year`, `cos_day_of_year`, `is_weekend`.
 
-> **Feature Isolation Principle**: Solar irradiance ($GHI$, $\Delta GHI$) and cloud cover are strictly excluded from the load model. This prevents non-physical cross-coupling.
+> **Feature Isolation Principle**: Solar irradiance (GHI, Delta GHI) and cloud cover are strictly excluded from the load model. This prevents non-physical cross-coupling.
 
 ---
 
@@ -267,10 +260,10 @@ The pipeline (`ml_service/features/pipeline.py`) creates distinct tabular matric
 - Located in `ml_service/postprocessing/boundary_enforcer.py`.
 - Machine learning models can output impossible physical values (small negative numbers or non-zero generation at night).
 - The boundary enforcer executes four deterministic rules after model inference:
-  1. **Hard Nocturnal Solar Zeroing**: If $GHI(T+h) \le 0.0\text{ W/m}^2$, sets $\hat{P}_{\text{pv}}(T+h) = 0.0\text{ kW}$.
-  2. **Inverter Capacity Ceiling**: Clips $\hat{P}_{\text{pv}}(T+h)$ to $[0.0, 50.0]\text{ kW}$.
-  3. **Load Demand Envelope**: Clips $\hat{P}_{\text{load}}(T+h)$ to $[0.0, 54.0]\text{ kW}$.
-  4. **Invalid Number Fallback**: Replaces any `NaN` or infinite value with physical defaults ($0.0\text{ kW}$ for solar, $10.0\text{ kW}$ baseload for load).
+  1. **Hard Nocturnal Solar Zeroing**: If GHI(T+h) <= 0.0 W/m^2, sets P_pv(T+h) = 0.0 kW.
+  2. **Inverter Capacity Ceiling**: Clips P_pv(T+h) to [0.0, 50.0] kW.
+  3. **Load Demand Envelope**: Clips P_load(T+h) to [0.0, 54.0] kW.
+  4. **Invalid Number Fallback**: Replaces any `NaN` or infinite value with physical defaults (0.0 kW for solar, 10.0 kW baseload for load).
 
 ---
 

@@ -110,7 +110,7 @@
 	<div class="chart-header">
 		<div>
 			<h2 class="chart-title">24-hour power dispatch trajectory</h2>
-			<p class="chart-subtitle">24-hour power forecast. Inverter limit is 50.0 kW. Building peak demand is 45.0 kW.</p>
+			<p class="chart-subtitle">24-hour power forecast. Inverter limit: 50.0 kW. Building peak demand: 45.0 kW. Battery BESS capacity: 100.0 kWh (nominal storage envelope).</p>
 		</div>
 
 		<div class="chart-actions">
@@ -170,7 +170,7 @@
 					<span class="guide-dot deficit-dot"></span>
 					Battery schedule (Green / Red)
 				</span>
-				<p>Net Power = Solar minus Load. Green surplus charges the battery. Red deficit discharges the battery to avoid peak grid rates.</p>
+				<p>Net Power = Solar minus Load. Green surplus charges the 100.0 kWh battery (15% to 95% State of Charge envelope). Red deficit discharges the battery to avoid peak grid rates.</p>
 			</div>
 		</div>
 	{/if}
@@ -196,7 +196,7 @@
 			</div>
 
 			<!-- Live Microgrid Power Flow Schematic -->
-			<div class="microgrid-flow font-mono" title="Instantaneous microgrid power flow at this hour">
+			<div class="microgrid-flow font-mono" title="Instantaneous microgrid power flow at this hour (100.0 kWh BESS storage)">
 				<div class="flow-asset pv-asset">
 					<Sun size={15} class="asset-symbol text-amber" />
 					<div class="asset-data">
@@ -232,7 +232,7 @@
 					{/if}
 				</div>
 
-				<div class="flow-asset batt-asset" class:charging={hoveredNet >= 0} class:discharging={hoveredNet < 0}>
+				<div class="flow-asset batt-asset" class:charging={hoveredNet >= 0} class:discharging={hoveredNet < 0} title="100.0 kWh BESS (50.0 kW max inverter)">
 					{#if hoveredNet >= 0}
 						<BatteryCharging size={16} class="asset-symbol text-emerald" />
 					{:else}

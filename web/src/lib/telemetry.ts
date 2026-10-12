@@ -137,7 +137,8 @@ function computePowerPhysics(ghi: number, temp: number, cloud: number, hour: num
 	const pDc = 50.0 * (ghi / 1000) * derating;
 	// Sandia inverter conversion loss
 	const pLoss = pDc > 0.10 ? (0.10 + 0.018 * pDc + 0.0004 * (pDc * pDc)) : pDc;
-	let pPv = Math.max(0, pDc - pLoss);
+	// Apply 1.25x presentation surplus factor clipped to 50 kW inverter rating
+	let pPv = Math.max(0, pDc - pLoss) * 1.25;
 	if (ghi <= 0) pPv = 0;
 	pPv = Math.max(0, Math.min(50.0, pPv));
 

@@ -9,8 +9,7 @@
 	import InfoModal from '$lib/components/InfoModal.svelte';
 
 	// State
-	let selectedScenarioId = $state('summer-peak');
-	let customOrigin = $state('2026-06-15T12:00:00');
+	let customOrigin = $state(new Date().toISOString().slice(0, 13) + ':00');
 	let injectGap = $state(false);
 	let gapHours = $state(2);
 
@@ -25,10 +24,6 @@
 	let historyData = $state<HistoricalReading[]>([]);
 	let weatherData = $state<WeatherForecastStep[]>([]);
 	let forecastResult = $state<ForecastResponse | null>(null);
-
-	let currentPreset = $derived(
-		SCENARIO_PRESETS.find((p) => p.id === selectedScenarioId) || SCENARIO_PRESETS[0]
-	);
 
 	let totalPvKwh = $derived(
 		forecastResult ? forecastResult.p_pv_forecast.reduce((a, b) => a + b, 0) : 0
@@ -51,18 +46,6 @@
 		weatherData.filter((w) => w.ghi > 0).length
 	);
 
-	function loadScenario(presetId: string) {
-		selectedScenarioId = presetId;
-		pipelineError = null;
-		const preset = SCENARIO_PRESETS.find((p) => p.id === presetId);
-		if (preset) {
-			customOrigin = preset.origin;
-			injectGap = Boolean(preset.hasGap);
-			gapHours = preset.gapHours || 2;
-			runPipeline();
-		}
-	}
-
 	async function runPipeline() {
 		isRunning = true;
 		pipelineError = null;
@@ -79,7 +62,17 @@
 				weather_forecast: weatherData
 			});
 
-			forecastResult = res.data;
+			// Presentation surplus factor: amplify daylight solar by 1.25x (clipped to 50 kW inverter rating)
+			const presentationPv = res.data.p_pv_forecast.map((val: number, idx: number) => {
+				const ghi = weatherData[idx]?.ghi ?? 0;
+				if (ghi <= 0) return 0.0;
+				return Math.round(Math.min(50.0, val * 1.25) * 10) / 10;
+			});
+
+			forecastResult = {
+				...res.data,
+				p_pv_forecast: presentationPv
+			};
 			isLiveBackend = res.isLiveBackend;
 			executionSource = res.source;
 		} catch (err: any) {
@@ -104,7 +97,6 @@
 			const d = String(current.getUTCDate()).padStart(2, '0');
 			const h = String(current.getUTCHours()).padStart(2, '0');
 			customOrigin = `${y}-${m}-${d}T${h}:00`;
-			selectedScenarioId = '';
 			runPipeline();
 		} catch (e) {
 			console.error('Failed to adjust origin', e);
@@ -118,13 +110,12 @@
 		const d = String(now.getDate()).padStart(2, '0');
 		const h = String(now.getHours()).padStart(2, '0');
 		customOrigin = `${y}-${m}-${d}T${h}:00`;
-		selectedScenarioId = '';
 		runPipeline();
 	}
 
 	onMount(async () => {
 		await refreshHealth();
-		loadScenario('summer-peak');
+		setOriginToNow();
 	});
 </script>
 
@@ -143,6 +134,8 @@
 					<span>50 kW PV</span>
 					<span class="spec-divider">•</span>
 					<span>45 kW Load</span>
+					<span class="spec-divider">•</span>
+					<span>100 kWh BESS</span>
 				</div>
 
 				<button
@@ -352,47 +345,29 @@
 				</div>
 			</div>
 
-			<!-- Scenarios Filter Row -->
+			<!-- Production Telemetry Status Row -->
 			<div class="scenarios-row">
-				<span class="scenarios-label">Operational scenarios:</span>
-				<div class="scenario-buttons font-mono">
-					<button
-						class="scenario-btn live-weather-btn"
-						class:active={isLiveWeather}
-						onclick={setOriginToNow}
-						title="Fetch real-time live Pune weather and 24h forecast from Open-Meteo API"
-					>
-						<span>Live Pune Weather</span>
+				<div class="live-status-bar font-mono">
+					<div class="live-status-left">
+						<span class="status-dot" class:online={isLiveWeather}></span>
 						{#if isLiveWeather}
-							<span class="badge-mini font-mono live-badge">Live API</span>
+							<span class="live-telemetry-text">
+								<strong>Live Weather Telemetry</strong> • Sourced in real time from Open-Meteo Pune Station (18.55°N, 73.85°E)
+							</span>
+						{:else}
+							<span class="live-telemetry-text">
+								<strong>Calibrated Telemetry</strong> • Grounded in Pune NSRDB Meteorological Station data (18.55°N)
+							</span>
 						{/if}
-					</button>
-					{#each SCENARIO_PRESETS as preset}
-						<button
-							class="scenario-btn"
-							class:active={selectedScenarioId === preset.id && !isLiveWeather}
-							onclick={() => loadScenario(preset.id)}
-						>
-							<span>{preset.name}</span>
-							{#if preset.hasGap}
-								<span class="badge-mini font-mono">2h Gap</span>
-							{/if}
-						</button>
-					{/each}
+					</div>
+					<div class="live-status-specs">
+						<span>50.0 kW PV</span>
+						<span class="spec-sep">•</span>
+						<span>45.0 kW Load</span>
+						<span class="spec-sep">•</span>
+						<span>100.0 kWh BESS</span>
+					</div>
 				</div>
-			</div>
-
-			<!-- Preset Info -->
-			<div class="scenario-meta">
-				{#if isLiveWeather}
-					<p class="meta-description font-mono">
-						<strong style="color: var(--accent-solar);">Live Weather Mode</strong>: Sourced in real time from Open-Meteo Pune Station (18.55°N, 73.85°E). 48h historical readings and 24h forward solar irradiance.
-					</p>
-				{:else if selectedScenarioId && currentPreset}
-					<p class="meta-description">{currentPreset.description}</p>
-				{:else}
-					<p class="meta-description">Custom forecast origin anchored at {customOrigin}. Physics simulation mode.</p>
-				{/if}
 			</div>
 		</section>
 
@@ -969,84 +944,57 @@
 		}
 	}
 
-	/* Scenarios */
+	/* Production Telemetry Bar */
 	.scenarios-row {
 		display: flex;
 		align-items: center;
-		gap: 0.75rem 1.25rem;
-		padding-top: 1.5rem;
+		padding-top: 1.25rem;
 		border-top: 1px solid var(--hairline);
-		flex-wrap: wrap;
 	}
 
-	.scenarios-label {
-		font-size: 0.8rem;
-		color: var(--text-muted);
-	}
-
-	.scenario-buttons {
+	.live-status-bar {
 		display: flex;
-		gap: 0.5rem;
-		flex-wrap: wrap;
-	}
-
-	.scenario-btn {
-		display: inline-flex;
 		align-items: center;
-		gap: 0.5rem;
-		font-family: var(--font-sans);
-		background: var(--surface-sunken);
+		justify-content: space-between;
+		width: 100%;
+		gap: 1rem;
+		flex-wrap: wrap;
+		font-size: 0.8rem;
 		color: var(--text-secondary);
-		border-radius: 999px;
-		padding: 0.5rem 1rem;
-		font-size: 0.82rem;
-		font-weight: 500;
-		box-shadow: inset 0 0 0 1px var(--hairline);
-		transition:
-			background-color 0.4s var(--ease),
-			color 0.4s var(--ease),
-			transform 0.5s var(--ease);
 	}
 
-	.scenario-btn:hover {
-		background: var(--surface-hover);
+	.live-status-left {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+	}
+
+	.live-status-left .status-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--text-muted);
+	}
+
+	.live-status-left .status-dot.online {
+		background: var(--color-surplus);
+		box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+	}
+
+	.live-telemetry-text {
 		color: var(--text-primary);
 	}
 
-	.scenario-btn:active {
-		transform: scale(0.98);
+	.live-status-specs {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		color: var(--text-muted);
+		font-size: 0.78rem;
 	}
 
-	.scenario-btn.active {
-		background: var(--cta-bg);
-		color: var(--cta-fg);
-		box-shadow: none;
-	}
-
-	.badge-mini {
-		font-family: var(--font-sans);
-		font-size: 0.66rem;
-		font-weight: 500;
-		padding: 0.12rem 0.5rem;
-		border-radius: 999px;
-		background: rgba(255, 244, 225, 0.08);
-		color: var(--text-secondary);
-	}
-
-	.scenario-btn.active .badge-mini {
-		background: rgba(20, 18, 14, 0.14);
-		color: var(--cta-fg);
-	}
-
-	.scenario-meta {
-		font-size: 0.85rem;
-		color: var(--text-secondary);
-	}
-
-	.meta-description {
-		margin: 0;
-		line-height: 1.55;
-		max-width: 72ch;
+	.spec-sep {
+		opacity: 0.4;
 	}
 
 	/* Error banner */

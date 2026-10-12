@@ -18,6 +18,8 @@ The physical assets determine the normalization baselines and the hard operating
 | **Peak Load Demand** | $P_{\text{load\_peak}}$ | `45.0` | Kilowatt (kW) | Maximum expected facility electrical load demand. |
 | **Facility Baseload Demand** | $P_{\text{load\_base}}$ | `10.0` | Kilowatt (kW) | Continuous nominal facility base electrical demand. |
 | **Transient Load Peak Limit** | $P_{\text{load\_max}}$ | `54.0` | Kilowatt (kW) | Hard upper ceiling ($1.2 \times P_{\text{load\_peak}}$) for electrical transients. |
+| **Battery Storage Capacity (BESS)** | $E_{\text{bess\_cap}}$ | `100.0` | Kilowatt-hour (kWh) | Total nominal energy storage capacity of the battery system. |
+| **Battery Power Inverter Rating** | $P_{\text{bess\_max}}$ | `50.0` | Kilowatt (kW) | Maximum bi-directional charge and discharge inverter capacity (Usable SoC: 15% to 95%). |
 
 ### 1.2 Temporal Parameters
 
@@ -623,5 +625,5 @@ Helios does not embed an internal mathematical programming solver (such as PuLP,
 | **Forecast Payload** | The structured 24-hour delivery containing aligned solar and load power forecast vectors. | Prediction dict, output array |
 | **Telemetry Source** | The provider abstraction supplying standardized microgrid sensor readings and weather data. | Data fetcher, dataset reader |
 | **Forecast Service Mode** | The delivery interface supplying forecasts via in-process calls, REST endpoints, or CLI commands. | API mode, server style |
-| **Microgrid Asset Sizing** | The nominal electrical capacities ($P_{\text{pv\_peak}}$, $P_{\text{load\_peak}}$, $P_{\text{load\_base}}$) that define boundaries. | Plant scale, system dimensions |
+| **Microgrid Asset Sizing** | The nominal electrical capacities ($P_{\text{pv\_peak}}$, $P_{\text{load\_peak}}$, $P_{\text{load\_base}}$, $E_{\text{bess\_cap}}$) that define boundaries. | Plant scale, system dimensions |
 | **Physical Post-Processing** | The deterministic enforcement layer that guarantees nocturnal solar zeroing and power clipping. | Output trimming, prediction clamping |

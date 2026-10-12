@@ -115,7 +115,7 @@
 								<span class="step-num font-mono">05</span>
 								<div class="step-text">
 									<h4>Schedule battery storage</h4>
-									<p>Calculate Net Power = Solar minus Load. When solar power exceeds load, charge the battery. When load exceeds solar power, discharge the battery to reduce grid cost.</p>
+									<p>Calculate Net Power = Solar minus Load. When solar power exceeds load, charge the 100.0 kWh battery (15% to 95% State of Charge envelope). When load exceeds solar power, discharge the battery to reduce grid cost.</p>
 								</div>
 							</div>
 						</div>
@@ -218,8 +218,8 @@
 										<p>The anchor hour. Historical sensor data spans [T-48h to T]. Predictions project [T+1h to T+24h].</p>
 									</div>
 									<div class="feed-item">
-										<strong>Scenario profiles</strong>
-										<p>Pre-configured seasonal profiles (Summer peak, Winter evening, Spring ramp, Storm front) to test microgrid performance.</p>
+										<strong>Live weather & telemetry stream</strong>
+										<p>Real-time Open-Meteo Pune forecasts and historical telemetry stream automatically to drive the 24-hour predictive pipeline.</p>
 									</div>
 									<div class="feed-item">
 										<strong>Sensor gap stress test</strong>
@@ -296,6 +296,12 @@
 										<td>kW</td>
 										<td>Asset</td>
 										<td>Facility electricity consumption. Baseline: 10.0 kW; Peak capacity: 45.0 kW.</td>
+									</tr>
+									<tr>
+										<td><strong>Battery BESS (E_batt)</strong></td>
+										<td>kWh</td>
+										<td>Asset</td>
+										<td>Battery Energy Storage System. Total nominal storage capacity: 100.0 kWh (Usable SoC envelope: 15% to 95%, max charge/discharge: 50.0 kW).</td>
 									</tr>
 									<tr>
 										<td><strong>GHI (Solar Irradiance)</strong></td>
